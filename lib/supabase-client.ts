@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
-// Database types
+// Database types - Updated to match actual schema
 export interface Profile {
   id: string
   username: string
@@ -56,12 +56,14 @@ export interface Attendance {
   ustadz?: Ustadz
 }
 
+// Updated to match actual memorization schema
 export interface Memorization {
   id: string
   santri_id: string
   date: string
-  total_setoran: number
-  total_hafalan: number
+  surah: string
+  ayah_from: number
+  ayah_to: number
   quality: "Baik" | "Cukup" | "Kurang"
   notes?: string
   created_at: string

@@ -67,19 +67,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session
     const checkSession = async () => {
       try {
+        // First check for demo session
+        const demoSession = localStorage.getItem("demoUserSession")
+        if (demoSession) {
+          const userData = JSON.parse(demoSession)
+          setUser(userData)
+          setIsLoading(false)
+          return
+        }
+
+        // Then check Supabase session
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
         if (session?.user) {
           await loadUserProfile(session.user)
-        } else {
-          // Check localStorage for demo session
-          const demoSession = localStorage.getItem("demoUserSession")
-          if (demoSession) {
-            const userData = JSON.parse(demoSession)
-            setUser(userData)
-          }
         }
       } catch (error) {
         console.error("Error checking session:", error)
@@ -139,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string, role: string): Promise<boolean> => {
     try {
-      // Check if it's a demo user
+      // Check if it's a demo user first
       const demoUser = Object.values(DEMO_USERS).find(
         (u) => u.username === username && u.password === password && u.role === role,
       )
@@ -183,11 +186,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      // Clear demo session first
+      localStorage.removeItem("demoUserSession")
+
       // Sign out from Supabase
       await supabase.auth.signOut()
-
-      // Clear demo session
-      localStorage.removeItem("demoUserSession")
 
       setUser(null)
       setProfile(null)

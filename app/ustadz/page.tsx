@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { User, Plus, Edit, Trash2, ArrowLeft } from "lucide-react"
+import { User, Plus, Edit, Trash2, ArrowLeft, Upload } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Navbar } from "@/components/navbar"
@@ -27,8 +27,12 @@ export default function UstadzPage() {
   const [loading, setLoading] = useState(false)
   const [hasAccess, setHasAccess] = useState(false)
 
+  const [importing, setImporting] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
-    if (user && hasPermission("manage_ustadz")) {
+    if (user && (hasPermission("manage_ustadz") || user.id.startsWith("demo-"))) {
       setHasAccess(true)
     } else {
       setHasAccess(false)
@@ -36,23 +40,27 @@ export default function UstadzPage() {
   }, [user, hasPermission])
 
   useEffect(() => {
-    loadUstadz()
-  }, [])
-
-  // Set up real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel("ustadz_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ustadz" }, (payload) => {
-        console.log("Real-time update:", payload)
-        loadUstadz() // Reload data when changes occur
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
+    if (hasAccess) {
+      loadUstadz()
     }
-  }, [])
+  }, [hasAccess])
+
+  // Set up real-time subscription only for non-demo users
+  useEffect(() => {
+    if (!user?.id?.startsWith("demo-") && hasAccess) {
+      const channel = supabase
+        .channel("ustadz_changes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "ustadz" }, (payload) => {
+          console.log("Real-time update:", payload)
+          loadUstadz() // Reload data when changes occur
+        })
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    }
+  }, [user, hasAccess])
 
   const loadUstadz = async () => {
     try {
@@ -226,6 +234,107 @@ export default function UstadzPage() {
     setEditingId("")
   }
 
+  const handleImport = async () => {
+    if (!importFile) {
+      alert("Silakan pilih file CSV terlebih dahulu!")
+      return
+    }
+
+    setImporting(true)
+
+    try {
+      const text = await importFile.text()
+      const lines = text.split("\n").filter((line) => line.trim())
+
+      if (lines.length < 2) {
+        alert("File CSV harus memiliki header dan minimal 1 data!")
+        return
+      }
+
+      // Parse CSV
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+      const requiredHeaders = ["nama", "halaqoh"]
+
+      const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h))
+      if (missingHeaders.length > 0) {
+        alert(`Header yang diperlukan: ${requiredHeaders.join(", ")}\nHeader yang hilang: ${missingHeaders.join(", ")}`)
+        return
+      }
+
+      const importedData: Ustadz[] = []
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map((v) => v.trim())
+        if (values.length < headers.length) continue
+
+        const rowData: any = {}
+        headers.forEach((header, index) => {
+          rowData[header] = values[index] || ""
+        })
+
+        const newUstadz: Ustadz = {
+          id: `imported-${Date.now()}-${i}`,
+          name: rowData.nama,
+          halaqoh: rowData.halaqoh,
+          phone: rowData.telepon || rowData.phone || "",
+          address: rowData.alamat || rowData.address || "",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        importedData.push(newUstadz)
+      }
+
+      const isDemoUser = user?.id?.startsWith("demo-")
+
+      if (isDemoUser) {
+        // Handle demo user with localStorage
+        const updatedList = [...ustadzList, ...importedData]
+        setUstadzList(updatedList)
+        localStorage.setItem("ustadzData", JSON.stringify(updatedList))
+      } else {
+        // Handle real Supabase user
+        const { error } = await supabase.from("ustadz").insert(
+          importedData.map((ustadz) => ({
+            name: ustadz.name,
+            halaqoh: ustadz.halaqoh,
+            phone: ustadz.phone,
+            address: ustadz.address,
+          })),
+        )
+
+        if (error) {
+          console.error("Error importing ustadz:", error)
+          alert("Gagal mengimpor data: " + error.message)
+          return
+        }
+      }
+
+      alert(`Berhasil mengimpor ${importedData.length} data Ustadz!`)
+      setImportFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    } catch (error) {
+      console.error("Error importing:", error)
+      alert("Gagal mengimpor data. Pastikan format CSV benar.")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const downloadTemplate = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8,nama,halaqoh,telepon,alamat\nUstadz Ahmad,Halaqoh A,08123456789,Jl. Contoh No. 1\nUstadz Budi,Halaqoh B,08987654321,Jl. Contoh No. 2"
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", "template_ustadz.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -327,8 +436,45 @@ export default function UstadzPage() {
               </CardContent>
             </Card>
 
-            {/* Daftar Ustadz */}
+            {/* Import Section */}
             <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Import Data Ustadz
+                </CardTitle>
+                <CardDescription>Import data Ustadz dari file CSV</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="csvFile">File CSV</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                  <p className="text-sm text-gray-500">Format: nama, halaqoh, telepon, alamat</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleImport}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    disabled={!importFile || importing}
+                  >
+                    {importing ? "Mengimpor..." : "Import Data"}
+                  </Button>
+                  <Button onClick={downloadTemplate} variant="outline" className="flex-1">
+                    Download Template
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Daftar Ustadz */}
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, Plus, Edit, Trash2, ArrowLeft } from "lucide-react"
+import { BookOpen, Plus, Edit, Trash2, ArrowLeft, Upload } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Navbar } from "@/components/navbar"
@@ -30,33 +30,20 @@ export default function SantriPage() {
   const [dataLoaded, setDataLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  const [importing, setImporting] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     const loadData = async () => {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      try {
+        const { data: santriData } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
+        const { data: ustadzData } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
 
-      if (isDemoUser) {
-        // Load data from localStorage for demo users
-        const santriData = JSON.parse(localStorage.getItem("santriData") || "[]")
-        const ustadzData = JSON.parse(localStorage.getItem("ustadzData") || "[]")
-        setSantriList(santriData)
-        setUstadzList(ustadzData)
-      } else {
-        // Load data from Supabase for real users
-        try {
-          const { data: santriData } = await supabase
-            .from("santri")
-            .select("*")
-            .order("created_at", { ascending: false })
-          const { data: ustadzData } = await supabase
-            .from("ustadz")
-            .select("*")
-            .order("created_at", { ascending: false })
-
-          setSantriList(santriData || [])
-          setUstadzList(ustadzData || [])
-        } catch (error) {
-          console.error("Error loading data:", error)
-        }
+        setSantriList(santriData || [])
+        setUstadzList(ustadzData || [])
+      } catch (error) {
+        console.error("Error loading data:", error)
       }
       setDataLoaded(true)
     }
@@ -91,26 +78,20 @@ export default function SantriPage() {
   }, [])
 
   const loadSantriData = async () => {
-    const isDemoUser = user?.id?.startsWith("demo-")
-    if (!isDemoUser) {
-      try {
-        const { data } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
-        setSantriList(data || [])
-      } catch (error) {
-        console.error("Error loading santri:", error)
-      }
+    try {
+      const { data } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
+      setSantriList(data || [])
+    } catch (error) {
+      console.error("Error loading santri:", error)
     }
   }
 
   const loadUstadzData = async () => {
-    const isDemoUser = user?.id?.startsWith("demo-")
-    if (!isDemoUser) {
-      try {
-        const { data } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
-        setUstadzList(data || [])
-      } catch (error) {
-        console.error("Error loading ustadz:", error)
-      }
+    try {
+      const { data } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
+      setUstadzList(data || [])
+    } catch (error) {
+      console.error("Error loading ustadz:", error)
     }
   }
 
@@ -141,31 +122,36 @@ export default function SantriPage() {
 
     setLoading(true)
 
-    const isDemoUser = user?.id?.startsWith("demo-")
-
-    if (isDemoUser) {
-      // Handle demo user with localStorage
-      let updatedList: Santri[]
-
+    try {
       if (isEditing) {
-        updatedList = santriList.map((santri) => (santri.id === editingId ? { ...santri, ...formData } : santri))
-      } else {
-        const newSantri: Santri = {
-          id: `demo-${Date.now()}`,
-          name: formData.name,
-          halaqoh: formData.halaqoh,
-          age: formData.age,
-          parent_name: formData.parentName,
-          phone: formData.phone,
-          address: formData.address,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-        updatedList = [...santriList, newSantri]
-      }
+        const { error } = await supabase
+          .from("santri")
+          .update({
+            name: formData.name,
+            halaqoh: formData.halaqoh,
+            age: formData.age,
+            parent_name: formData.parentName,
+            phone: formData.phone,
+            address: formData.address,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingId)
 
-      setSantriList(updatedList)
-      localStorage.setItem("santriData", JSON.stringify(updatedList))
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from("santri").insert([
+          {
+            name: formData.name,
+            halaqoh: formData.halaqoh,
+            age: formData.age,
+            parent_name: formData.parentName,
+            phone: formData.phone,
+            address: formData.address,
+          },
+        ])
+
+        if (error) throw error
+      }
 
       // Reset form
       setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
@@ -173,50 +159,9 @@ export default function SantriPage() {
       setEditingId("")
 
       alert(isEditing ? "Data Santri berhasil diperbarui!" : "Santri baru berhasil ditambahkan!")
-    } else {
-      // Handle real Supabase user
-      try {
-        if (isEditing) {
-          const { error } = await supabase
-            .from("santri")
-            .update({
-              name: formData.name,
-              halaqoh: formData.halaqoh,
-              age: formData.age,
-              parent_name: formData.parentName,
-              phone: formData.phone,
-              address: formData.address,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", editingId)
-
-          if (error) throw error
-        } else {
-          const { error } = await supabase.from("santri").insert([
-            {
-              name: formData.name,
-              halaqoh: formData.halaqoh,
-              age: formData.age,
-              parent_name: formData.parentName,
-              phone: formData.phone,
-              address: formData.address,
-            },
-          ])
-
-          if (error) throw error
-        }
-
-        // Reset form
-        setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
-        setIsEditing(false)
-        setEditingId("")
-
-        alert(isEditing ? "Data Santri berhasil diperbarui!" : "Santri baru berhasil ditambahkan!")
-        // Data will be automatically updated via real-time subscription
-      } catch (error) {
-        console.error("Error:", error)
-        alert("Terjadi kesalahan saat menyimpan data")
-      }
+    } catch (error) {
+      console.error("Error:", error)
+      alert("Terjadi kesalahan saat menyimpan data")
     }
 
     setLoading(false)
@@ -237,29 +182,19 @@ export default function SantriPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm("Apakah Anda yakin ingin menghapus data Santri ini?")) {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      try {
+        const { error } = await supabase.from("santri").delete().eq("id", id)
 
-      if (isDemoUser) {
-        const updatedList = santriList.filter((santri) => santri.id !== id)
-        setSantriList(updatedList)
-        localStorage.setItem("santriData", JSON.stringify(updatedList))
-        alert("Data Santri berhasil dihapus!")
-      } else {
-        try {
-          const { error } = await supabase.from("santri").delete().eq("id", id)
-
-          if (error) {
-            console.error("Error deleting santri:", error)
-            alert("Gagal menghapus data santri: " + error.message)
-            return
-          }
-
-          alert("Data Santri berhasil dihapus!")
-          // Data will be automatically updated via real-time subscription
-        } catch (error) {
+        if (error) {
           console.error("Error deleting santri:", error)
-          alert("Terjadi kesalahan")
+          alert("Gagal menghapus data santri: " + error.message)
+          return
         }
+
+        alert("Data Santri berhasil dihapus!")
+      } catch (error) {
+        console.error("Error deleting santri:", error)
+        alert("Terjadi kesalahan")
       }
     }
   }
@@ -268,6 +203,87 @@ export default function SantriPage() {
     setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
     setIsEditing(false)
     setEditingId("")
+  }
+
+  const handleImport = async () => {
+    if (!importFile) {
+      alert("Silakan pilih file CSV terlebih dahulu!")
+      return
+    }
+
+    setImporting(true)
+
+    try {
+      const text = await importFile.text()
+      const lines = text.split("\n").filter((line) => line.trim())
+
+      if (lines.length < 2) {
+        alert("File CSV harus memiliki header dan minimal 1 data!")
+        return
+      }
+
+      // Parse CSV
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+      const requiredHeaders = ["nama", "halaqoh"]
+
+      const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h))
+      if (missingHeaders.length > 0) {
+        alert(`Header yang diperlukan: ${requiredHeaders.join(", ")}\nHeader yang hilang: ${missingHeaders.join(", ")}`)
+        return
+      }
+
+      const importedData = []
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map((v) => v.trim())
+        if (values.length < headers.length) continue
+
+        const rowData: any = {}
+        headers.forEach((header, index) => {
+          rowData[header] = values[index] || ""
+        })
+
+        importedData.push({
+          name: rowData.nama,
+          halaqoh: rowData.halaqoh,
+          age: rowData.usia || rowData.age || "",
+          parent_name: rowData.nama_orangtua || rowData.parent_name || "",
+          phone: rowData.telepon || rowData.phone || "",
+          address: rowData.alamat || rowData.address || "",
+        })
+      }
+
+      const { error } = await supabase.from("santri").insert(importedData)
+
+      if (error) {
+        console.error("Error importing santri:", error)
+        alert("Gagal mengimpor data: " + error.message)
+        return
+      }
+
+      alert(`Berhasil mengimpor ${importedData.length} data Santri!`)
+      setImportFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    } catch (error) {
+      console.error("Error importing:", error)
+      alert("Gagal mengimpor data. Pastikan format CSV benar.")
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const downloadTemplate = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8,nama,halaqoh,usia,nama_orangtua,telepon,alamat\nAhmad Santri,Halaqoh A,12 tahun,Bapak Ahmad,08123456789,Jl. Contoh No. 1\nBudi Santri,Halaqoh B,13 tahun,Bapak Budi,08987654321,Jl. Contoh No. 2"
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", "template_santri.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const getAvailableHalaqoh = () => {
@@ -389,8 +405,45 @@ export default function SantriPage() {
               </CardContent>
             </Card>
 
-            {/* Daftar Santri */}
+            {/* Import Section */}
             <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Import Data Santri
+                </CardTitle>
+                <CardDescription>Import data Santri dari file CSV</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="csvFile">File CSV</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                  <p className="text-sm text-gray-500">Format: nama, halaqoh, usia, nama_orangtua, telepon, alamat</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleImport}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    disabled={!importFile || importing}
+                  >
+                    {importing ? "Mengimpor..." : "Import Data"}
+                  </Button>
+                  <Button onClick={downloadTemplate} variant="outline" className="flex-1">
+                    Download Template
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Daftar Santri */}
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5" />

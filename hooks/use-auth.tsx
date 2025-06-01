@@ -11,6 +11,7 @@ interface AuthUser {
   username: string
   role: "admin" | "masul_tahfidz" | "tim_tahfidz"
   loginTime: string
+  isDemo?: boolean
 }
 
 interface AuthContextType {
@@ -49,12 +50,12 @@ const PERMISSIONS = {
   tim_tahfidz: ["view_dashboard", "manage_attendance", "manage_memorization", "view_reports"],
 }
 
-// Demo users for development
-const DEMO_USERS = {
-  admin: { username: "admin", password: "admin123", role: "admin" },
-  masul: { username: "masul", password: "masul123", role: "masul_tahfidz" },
-  tim: { username: "tim", password: "tim123", role: "tim_tahfidz" },
-}
+// Demo users - handled entirely in frontend
+const DEMO_USERS = [
+  { id: "demo-admin", username: "admin", email: "admin@demo.com", password: "admin123", role: "admin" },
+  { id: "demo-masul", username: "masul", email: "masul@demo.com", password: "masul123", role: "masul_tahfidz" },
+  { id: "demo-tim", username: "tim", email: "tim@demo.com", password: "tim123", role: "tim_tahfidz" },
+]
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -64,19 +65,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
-    // Check for existing session
+    // Check for existing session and demo user session
     const checkSession = async () => {
       try {
-        // First check for demo session
+        // First check if there's a demo user session in localStorage
         const demoSession = localStorage.getItem("demoUserSession")
         if (demoSession) {
-          const userData = JSON.parse(demoSession)
-          setUser(userData)
-          setIsLoading(false)
-          return
+          try {
+            const demoUser = JSON.parse(demoSession)
+            setUser(demoUser)
+            setIsLoading(false)
+            return
+          } catch (error) {
+            console.error("Error parsing demo session:", error)
+            localStorage.removeItem("demoUserSession")
+          }
         }
 
-        // Then check Supabase session
+        // Then check for real Supabase session
         const {
           data: { session },
         } = await supabase.auth.getSession()
@@ -93,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkSession()
 
-    // Listen for auth changes
+    // Listen for auth changes (only for real users)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -102,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === "SIGNED_OUT") {
         setUser(null)
         setProfile(null)
+        localStorage.removeItem("demoUserSession")
       }
     })
 
@@ -133,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: profileData.username,
           role: profileData.role,
           loginTime: new Date().toISOString(),
+          isDemo: false,
         })
       }
     } catch (error) {
@@ -143,25 +151,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string, role: string): Promise<boolean> => {
     try {
       // Check if it's a demo user first
-      const demoUser = Object.values(DEMO_USERS).find(
-        (u) => u.username === username && u.password === password && u.role === role,
-      )
+      const demoUser = DEMO_USERS.find((u) => u.username === username && u.password === password && u.role === role)
 
       if (demoUser) {
-        // Demo login
+        // Handle demo user entirely in frontend
         const userData: AuthUser = {
-          id: `demo-${username}`,
+          id: demoUser.id,
           username: demoUser.username,
           role: demoUser.role as "admin" | "masul_tahfidz" | "tim_tahfidz",
           loginTime: new Date().toISOString(),
+          isDemo: true,
         }
 
-        setUser(userData)
+        // Store demo session in localStorage
         localStorage.setItem("demoUserSession", JSON.stringify(userData))
+
+        setUser(userData)
+        setProfile(null) // Demo users don't have database profiles
         return true
       }
 
-      // Try Supabase auth (for real users)
+      // Try Supabase auth for real users
       const { data, error } = await supabase.auth.signInWithPassword({
         email: username,
         password: password,
@@ -186,10 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      // Clear demo session first
+      // Clear demo session
       localStorage.removeItem("demoUserSession")
 
-      // Sign out from Supabase
+      // Sign out from Supabase (for real users)
       await supabase.auth.signOut()
 
       setUser(null)

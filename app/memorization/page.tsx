@@ -12,30 +12,19 @@ import { BookOpen, User, ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Navbar } from "@/components/navbar"
-import { supabase, type Santri } from "@/lib/supabase-client"
-
-interface MemorizationRecord {
-  id: string
-  santriId: string
-  santriName: string
-  halaqoh: string
-  date: string
-  totalSetoran: number
-  totalHafalan: number
-  quality: "Baik" | "Cukup" | "Kurang"
-  notes: string
-}
+import { supabase, type Santri, type Memorization } from "@/lib/supabase-client"
 
 export default function MemorizationPage() {
   const { user, hasPermission, isLoading } = useAuth()
   const [santriList, setSantriList] = useState<Santri[]>([])
-  const [memorizationRecords, setMemorizationRecords] = useState<MemorizationRecord[]>([])
+  const [memorizationRecords, setMemorizationRecords] = useState<Memorization[]>([])
   const [selectedHalaqoh, setSelectedHalaqoh] = useState("")
   const [selectedSantri, setSelectedSantri] = useState("")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
   const [formData, setFormData] = useState({
-    totalSetoran: "",
-    totalHafalan: "",
+    surah: "",
+    ayahFrom: "",
+    ayahTo: "",
     quality: "",
     notes: "",
   })
@@ -52,52 +41,23 @@ export default function MemorizationPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      try {
+        const { data: santriData } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
+        const { data: memorizationData } = await supabase
+          .from("memorization")
+          .select(`
+            *,
+            santri:santri_id (
+              name,
+              halaqoh
+            )
+          `)
+          .order("created_at", { ascending: false })
 
-      if (isDemoUser) {
-        // Load data from localStorage for demo users
-        const santriData = JSON.parse(localStorage.getItem("santriData") || "[]")
-        const memorizationData = JSON.parse(localStorage.getItem("memorizationData") || "[]")
-        setSantriList(santriData)
-        setMemorizationRecords(memorizationData)
-      } else {
-        // Load data from Supabase for real users
-        try {
-          const { data: santriData } = await supabase
-            .from("santri")
-            .select("*")
-            .order("created_at", { ascending: false })
-          const { data: memorizationData } = await supabase
-            .from("memorization")
-            .select(`
-              *,
-              santri:santri_id (
-                name,
-                halaqoh
-              )
-            `)
-            .order("created_at", { ascending: false })
-
-          setSantriList(santriData || [])
-
-          // Transform memorization data to match new interface
-          const transformedMemorization =
-            memorizationData?.map((record) => ({
-              id: record.id,
-              santriId: record.santri_id,
-              santriName: record.santri?.name || "",
-              halaqoh: record.santri?.halaqoh || "",
-              date: record.date,
-              totalSetoran: record.total_setoran || 0,
-              totalHafalan: record.total_hafalan || 0,
-              quality: record.quality as "Baik" | "Cukup" | "Kurang",
-              notes: record.notes || "",
-            })) || []
-
-          setMemorizationRecords(transformedMemorization)
-        } catch (error) {
-          console.error("Error loading data:", error)
-        }
+        setSantriList(santriData || [])
+        setMemorizationRecords(memorizationData || [])
+      } catch (error) {
+        console.error("Error loading data:", error)
       }
     }
 
@@ -131,49 +91,30 @@ export default function MemorizationPage() {
   }, [])
 
   const loadMemorizationData = async () => {
-    const isDemoUser = user?.id?.startsWith("demo-")
-    if (!isDemoUser) {
-      try {
-        const { data } = await supabase
-          .from("memorization")
-          .select(`
-            *,
-            santri:santri_id (
-              name,
-              halaqoh
-            )
-          `)
-          .order("created_at", { ascending: false })
+    try {
+      const { data } = await supabase
+        .from("memorization")
+        .select(`
+          *,
+          santri:santri_id (
+            name,
+            halaqoh
+          )
+        `)
+        .order("created_at", { ascending: false })
 
-        const transformedMemorization =
-          data?.map((record) => ({
-            id: record.id,
-            santriId: record.santri_id,
-            santriName: record.santri?.name || "",
-            halaqoh: record.santri?.halaqoh || "",
-            date: record.date,
-            totalSetoran: record.total_setoran || 0,
-            totalHafalan: record.total_hafalan || 0,
-            quality: record.quality as "Baik" | "Cukup" | "Kurang",
-            notes: record.notes || "",
-          })) || []
-
-        setMemorizationRecords(transformedMemorization)
-      } catch (error) {
-        console.error("Error loading memorization:", error)
-      }
+      setMemorizationRecords(data || [])
+    } catch (error) {
+      console.error("Error loading memorization:", error)
     }
   }
 
   const loadSantriData = async () => {
-    const isDemoUser = user?.id?.startsWith("demo-")
-    if (!isDemoUser) {
-      try {
-        const { data } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
-        setSantriList(data || [])
-      } catch (error) {
-        console.error("Error loading santri:", error)
-      }
+    try {
+      const { data } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
+      setSantriList(data || [])
+    } catch (error) {
+      console.error("Error loading santri:", error)
     }
   }
 
@@ -187,75 +128,50 @@ export default function MemorizationPage() {
   }
 
   const handleSubmitMemorization = async () => {
-    if (!selectedSantri || !formData.totalSetoran || !formData.totalHafalan || !formData.quality) {
+    if (!selectedSantri || !formData.surah || !formData.ayahFrom || !formData.ayahTo || !formData.quality) {
       alert("Mohon lengkapi semua field yang wajib!")
       return
     }
 
     setLoading(true)
 
-    const isDemoUser = user?.id?.startsWith("demo-")
+    try {
+      const { error } = await supabase.from("memorization").insert([
+        {
+          santri_id: selectedSantri,
+          date: selectedDate,
+          surah: formData.surah,
+          ayah_from: Number.parseInt(formData.ayahFrom),
+          ayah_to: Number.parseInt(formData.ayahTo),
+          quality: formData.quality,
+          notes: formData.notes,
+        },
+      ])
 
-    if (isDemoUser) {
-      // Handle demo user with localStorage
-      const santri = santriList.find((s) => s.id === selectedSantri)
-      if (!santri) return
-
-      const newRecord: MemorizationRecord = {
-        id: `demo-${Date.now()}`,
-        santriId: selectedSantri,
-        santriName: santri.name,
-        halaqoh: santri.halaqoh,
-        date: selectedDate,
-        totalSetoran: Number.parseInt(formData.totalSetoran),
-        totalHafalan: Number.parseInt(formData.totalHafalan),
-        quality: formData.quality as "Baik" | "Cukup" | "Kurang",
-        notes: formData.notes,
-      }
-
-      const updatedRecords = [...memorizationRecords, newRecord]
-      setMemorizationRecords(updatedRecords)
-      localStorage.setItem("memorizationData", JSON.stringify(updatedRecords))
-    } else {
-      // Handle real Supabase user
-      try {
-        const { error } = await supabase.from("memorization").insert([
-          {
-            santri_id: selectedSantri,
-            date: selectedDate,
-            total_setoran: Number.parseInt(formData.totalSetoran),
-            total_hafalan: Number.parseInt(formData.totalHafalan),
-            quality: formData.quality,
-            notes: formData.notes,
-          },
-        ])
-
-        if (error) {
-          console.error("Error inserting memorization:", error)
-          alert("Gagal menyimpan data hafalan: " + error.message)
-          return
-        }
-
-        // Data will be automatically updated via real-time subscription
-      } catch (error) {
-        console.error("Error submitting memorization:", error)
-        alert("Terjadi kesalahan")
+      if (error) {
+        console.error("Error inserting memorization:", error)
+        alert("Gagal menyimpan data hafalan: " + error.message)
         return
       }
+
+      // Reset form
+      setSelectedHalaqoh("")
+      setSelectedSantri("")
+      setFormData({
+        surah: "",
+        ayahFrom: "",
+        ayahTo: "",
+        quality: "",
+        notes: "",
+      })
+
+      alert("Data hafalan berhasil disimpan!")
+    } catch (error) {
+      console.error("Error submitting memorization:", error)
+      alert("Terjadi kesalahan")
+    } finally {
+      setLoading(false)
     }
-
-    // Reset form
-    setSelectedHalaqoh("")
-    setSelectedSantri("")
-    setFormData({
-      totalSetoran: "",
-      totalHafalan: "",
-      quality: "",
-      notes: "",
-    })
-
-    alert("Data hafalan berhasil disimpan!")
-    setLoading(false)
   }
 
   const getQualityColor = (quality: string) => {
@@ -365,23 +281,33 @@ export default function MemorizationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="totalSetoran">Total Setoran Bulan Ini *</Label>
+                  <Label htmlFor="surah">Nama Surah *</Label>
                   <Input
-                    type="number"
-                    placeholder="Jumlah setoran"
-                    value={formData.totalSetoran}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, totalSetoran: e.target.value }))}
+                    placeholder="Contoh: Al-Fatihah"
+                    value={formData.surah}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, surah: e.target.value }))}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="totalHafalan">Total Hafalan (Ayat) *</Label>
-                  <Input
-                    type="number"
-                    placeholder="Total ayat yang dihafal"
-                    value={formData.totalHafalan}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, totalHafalan: e.target.value }))}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ayahFrom">Ayat Dari *</Label>
+                    <Input
+                      type="number"
+                      placeholder="1"
+                      value={formData.ayahFrom}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, ayahFrom: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ayahTo">Ayat Sampai *</Label>
+                    <Input
+                      type="number"
+                      placeholder="7"
+                      value={formData.ayahTo}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, ayahTo: e.target.value }))}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -414,7 +340,12 @@ export default function MemorizationPage() {
                   onClick={handleSubmitMemorization}
                   className="w-full bg-blue-600 hover:bg-blue-700"
                   disabled={
-                    !selectedSantri || !formData.totalSetoran || !formData.totalHafalan || !formData.quality || loading
+                    !selectedSantri ||
+                    !formData.surah ||
+                    !formData.ayahFrom ||
+                    !formData.ayahTo ||
+                    !formData.quality ||
+                    loading
                   }
                 >
                   {loading ? "Menyimpan..." : "Simpan Data Hafalan"}
@@ -441,7 +372,7 @@ export default function MemorizationPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4" />
-                            <span className="font-medium">{record.santriName}</span>
+                            <span className="font-medium">{record.santri?.name}</span>
                           </div>
                           <span className="text-sm text-gray-500">
                             {new Date(record.date).toLocaleDateString("id-ID")}
@@ -449,13 +380,13 @@ export default function MemorizationPage() {
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm">
-                            <span className="font-medium">Total Setoran:</span> {record.totalSetoran}
+                            <span className="font-medium">Surah:</span> {record.surah}
                           </p>
                           <p className="text-sm">
-                            <span className="font-medium">Total Hafalan:</span> {record.totalHafalan} ayat
+                            <span className="font-medium">Ayat:</span> {record.ayah_from} - {record.ayah_to}
                           </p>
                           <p className="text-sm">
-                            <span className="font-medium">Halaqoh:</span> {record.halaqoh}
+                            <span className="font-medium">Halaqoh:</span> {record.santri?.halaqoh}
                           </p>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">Kualitas:</span>

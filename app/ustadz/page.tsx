@@ -32,7 +32,7 @@ export default function UstadzPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (user && (hasPermission("manage_ustadz") || user.id.startsWith("demo-"))) {
+    if (user && hasPermission("manage_ustadz")) {
       setHasAccess(true)
     } else {
       setHasAccess(false)
@@ -47,7 +47,7 @@ export default function UstadzPage() {
 
   // Set up real-time subscription only for non-demo users
   useEffect(() => {
-    if (!user?.id?.startsWith("demo-") && hasAccess) {
+    if (hasAccess && user && !user.isDemo) {
       const channel = supabase
         .channel("ustadz_changes")
         .on("postgres_changes", { event: "*", schema: "public", table: "ustadz" }, (payload) => {
@@ -60,11 +60,11 @@ export default function UstadzPage() {
         supabase.removeChannel(channel)
       }
     }
-  }, [user, hasAccess])
+  }, [hasAccess, user])
 
   const loadUstadz = async () => {
     try {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      const isDemoUser = user?.isDemo
 
       if (isDemoUser) {
         // Load from localStorage for demo users
@@ -95,7 +95,7 @@ export default function UstadzPage() {
     setLoading(true)
 
     try {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      const isDemoUser = user?.isDemo
 
       if (isDemoUser) {
         // Handle demo user with localStorage
@@ -119,8 +119,8 @@ export default function UstadzPage() {
             id: `demo-${Date.now()}`,
             name: formData.name,
             halaqoh: formData.halaqoh,
-            phone: formData.phone || "",
-            address: formData.address || "",
+            phone: formData.phone,
+            address: formData.address,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
@@ -171,7 +171,8 @@ export default function UstadzPage() {
           alert("Ustadz baru berhasil ditambahkan!")
         }
 
-        // Data will be automatically updated via real-time subscription
+        // Reload data for real users
+        await loadUstadz()
       }
 
       // Reset form
@@ -200,7 +201,7 @@ export default function UstadzPage() {
   const handleDelete = async (id: string) => {
     if (confirm("Apakah Anda yakin ingin menghapus data Ustadz ini?")) {
       try {
-        const isDemoUser = user?.id?.startsWith("demo-")
+        const isDemoUser = user?.isDemo
 
         if (isDemoUser) {
           // Handle demo user with localStorage
@@ -219,7 +220,7 @@ export default function UstadzPage() {
           }
 
           alert("Data Ustadz berhasil dihapus!")
-          // Data will be automatically updated via real-time subscription
+          await loadUstadz()
         }
       } catch (error) {
         console.error("Error deleting ustadz:", error)
@@ -261,7 +262,7 @@ export default function UstadzPage() {
         return
       }
 
-      const importedData: Ustadz[] = []
+      const importedData = []
 
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(",").map((v) => v.trim())
@@ -272,8 +273,8 @@ export default function UstadzPage() {
           rowData[header] = values[index] || ""
         })
 
-        const newUstadz: Ustadz = {
-          id: `imported-${Date.now()}-${i}`,
+        const newUstadz = {
+          id: user?.isDemo ? `demo-${Date.now()}-${i}` : undefined,
           name: rowData.nama,
           halaqoh: rowData.halaqoh,
           phone: rowData.telepon || rowData.phone || "",
@@ -285,7 +286,7 @@ export default function UstadzPage() {
         importedData.push(newUstadz)
       }
 
-      const isDemoUser = user?.id?.startsWith("demo-")
+      const isDemoUser = user?.isDemo
 
       if (isDemoUser) {
         // Handle demo user with localStorage
@@ -294,20 +295,15 @@ export default function UstadzPage() {
         localStorage.setItem("ustadzData", JSON.stringify(updatedList))
       } else {
         // Handle real Supabase user
-        const { error } = await supabase.from("ustadz").insert(
-          importedData.map((ustadz) => ({
-            name: ustadz.name,
-            halaqoh: ustadz.halaqoh,
-            phone: ustadz.phone,
-            address: ustadz.address,
-          })),
-        )
+        const { error } = await supabase.from("ustadz").insert(importedData)
 
         if (error) {
           console.error("Error importing ustadz:", error)
           alert("Gagal mengimpor data: " + error.message)
           return
         }
+
+        await loadUstadz()
       }
 
       alert(`Berhasil mengimpor ${importedData.length} data Ustadz!`)

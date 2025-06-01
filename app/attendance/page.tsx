@@ -50,51 +50,37 @@ export default function AttendancePage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      try {
+        const { data: ustadzData } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
+        const { data: attendanceData } = await supabase
+          .from("attendance")
+          .select(`
+            *,
+            ustadz:ustadz_id (
+              name,
+              halaqoh
+            )
+          `)
+          .order("created_at", { ascending: false })
 
-      if (isDemoUser) {
-        // Load data from localStorage for demo users
-        const ustadzData = JSON.parse(localStorage.getItem("ustadzData") || "[]")
-        const attendanceData = JSON.parse(localStorage.getItem("attendanceData") || "[]")
-        setUstadzList(ustadzData)
-        setAttendanceRecords(attendanceData)
-      } else {
-        // Load data from Supabase for real users
-        try {
-          const { data: ustadzData } = await supabase
-            .from("ustadz")
-            .select("*")
-            .order("created_at", { ascending: false })
-          const { data: attendanceData } = await supabase
-            .from("attendance")
-            .select(`
-              *,
-              ustadz:ustadz_id (
-                name,
-                halaqoh
-              )
-            `)
-            .order("created_at", { ascending: false })
+        setUstadzList(ustadzData || [])
 
-          setUstadzList(ustadzData || [])
+        // Transform attendance data to match interface
+        const transformedAttendance =
+          attendanceData?.map((record) => ({
+            id: record.id,
+            ustadzId: record.ustadz_id,
+            ustadzName: record.ustadz?.name || "",
+            date: record.date,
+            sabaq: record.sabaq,
+            sabqi: record.sabqi,
+            manzil: record.manzil,
+            notes: record.notes || "",
+          })) || []
 
-          // Transform attendance data to match interface
-          const transformedAttendance =
-            attendanceData?.map((record) => ({
-              id: record.id,
-              ustadzId: record.ustadz_id,
-              ustadzName: record.ustadz?.name || "",
-              date: record.date,
-              sabaq: record.sabaq,
-              sabqi: record.sabqi,
-              manzil: record.manzil,
-              notes: record.notes || "",
-            })) || []
-
-          setAttendanceRecords(transformedAttendance)
-        } catch (error) {
-          console.error("Error loading data:", error)
-        }
+        setAttendanceRecords(transformedAttendance)
+      } catch (error) {
+        console.error("Error loading data:", error)
       }
     }
 
@@ -128,48 +114,42 @@ export default function AttendancePage() {
   }, [])
 
   const loadAttendanceData = async () => {
-    const isDemoUser = user?.id?.startsWith("demo-")
-    if (!isDemoUser) {
-      try {
-        const { data } = await supabase
-          .from("attendance")
-          .select(`
-            *,
-            ustadz:ustadz_id (
-              name,
-              halaqoh
-            )
-          `)
-          .order("created_at", { ascending: false })
+    try {
+      const { data } = await supabase
+        .from("attendance")
+        .select(`
+          *,
+          ustadz:ustadz_id (
+            name,
+            halaqoh
+          )
+        `)
+        .order("created_at", { ascending: false })
 
-        const transformedAttendance =
-          data?.map((record) => ({
-            id: record.id,
-            ustadzId: record.ustadz_id,
-            ustadzName: record.ustadz?.name || "",
-            date: record.date,
-            sabaq: record.sabaq,
-            sabqi: record.sabqi,
-            manzil: record.manzil,
-            notes: record.notes || "",
-          })) || []
+      const transformedAttendance =
+        data?.map((record) => ({
+          id: record.id,
+          ustadzId: record.ustadz_id,
+          ustadzName: record.ustadz?.name || "",
+          date: record.date,
+          sabaq: record.sabaq,
+          sabqi: record.sabqi,
+          manzil: record.manzil,
+          notes: record.notes || "",
+        })) || []
 
-        setAttendanceRecords(transformedAttendance)
-      } catch (error) {
-        console.error("Error loading attendance:", error)
-      }
+      setAttendanceRecords(transformedAttendance)
+    } catch (error) {
+      console.error("Error loading attendance:", error)
     }
   }
 
   const loadUstadzData = async () => {
-    const isDemoUser = user?.id?.startsWith("demo-")
-    if (!isDemoUser) {
-      try {
-        const { data } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
-        setUstadzList(data || [])
-      } catch (error) {
-        console.error("Error loading ustadz:", error)
-      }
+    try {
+      const { data } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
+      setUstadzList(data || [])
+    } catch (error) {
+      console.error("Error loading ustadz:", error)
     }
   }
 
@@ -201,49 +181,21 @@ export default function AttendancePage() {
     setIsSaving(true)
 
     try {
-      const isDemoUser = user?.id?.startsWith("demo-")
-
-      if (isDemoUser) {
-        // Handle demo user with localStorage
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const ustadz = ustadzList.find((u) => u.id === selectedUstadz)
-        if (!ustadz) return
-
-        const newRecord: AttendanceRecord = {
-          id: `demo-${Date.now()}`,
-          ustadzId: selectedUstadz,
-          ustadzName: ustadz.name,
+      const { error } = await supabase.from("attendance").insert([
+        {
+          ustadz_id: selectedUstadz,
           date: selectedDate,
           sabaq: attendance.sabaq,
           sabqi: attendance.sabqi,
           manzil: attendance.manzil,
-          notes,
-        }
+          notes: notes,
+        },
+      ])
 
-        const updatedRecords = [...attendanceRecords, newRecord]
-        setAttendanceRecords(updatedRecords)
-        localStorage.setItem("attendanceData", JSON.stringify(updatedRecords))
-      } else {
-        // Handle real Supabase user
-        const { error } = await supabase.from("attendance").insert([
-          {
-            ustadz_id: selectedUstadz,
-            date: selectedDate,
-            sabaq: attendance.sabaq,
-            sabqi: attendance.sabqi,
-            manzil: attendance.manzil,
-            notes: notes,
-          },
-        ])
-
-        if (error) {
-          console.error("Error inserting attendance:", error)
-          alert("Gagal menyimpan absensi: " + error.message)
-          return
-        }
-
-        // Data will be automatically updated via real-time subscription
+      if (error) {
+        console.error("Error inserting attendance:", error)
+        alert("Gagal menyimpan absensi: " + error.message)
+        return
       }
 
       // Reset form

@@ -4,7 +4,6 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { supabase, type Profile } from "@/lib/supabase-client"
-import type { User } from "@supabase/supabase-js"
 
 interface AuthUser {
   id: string
@@ -50,11 +49,11 @@ const PERMISSIONS = {
   tim_tahfidz: ["view_dashboard", "manage_attendance", "manage_memorization", "view_reports"],
 }
 
-// Demo users - handled entirely in frontend
+// Demo users credentials
 const DEMO_USERS = [
-  { id: "demo-admin", username: "admin", email: "admin@demo.com", password: "admin123", role: "admin" },
-  { id: "demo-masul", username: "masul", email: "masul@demo.com", password: "masul123", role: "masul_tahfidz" },
-  { id: "demo-tim", username: "tim", email: "tim@demo.com", password: "tim123", role: "tim_tahfidz" },
+  { id: "demo-admin", username: "admin", password: "admin123", role: "admin" },
+  { id: "demo-masul", username: "masul", password: "masul123", role: "masul_tahfidz" },
+  { id: "demo-tim", username: "tim", password: "tim123", role: "tim_tahfidz" },
 ]
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -65,54 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
-    // Check for existing session and demo user session
-    const checkSession = async () => {
-      try {
-        // First check if there's a demo user session in localStorage
-        const demoSession = localStorage.getItem("demoUserSession")
-        if (demoSession) {
-          try {
-            const demoUser = JSON.parse(demoSession)
-            setUser(demoUser)
-            setIsLoading(false)
-            return
-          } catch (error) {
-            console.error("Error parsing demo session:", error)
-            localStorage.removeItem("demoUserSession")
-          }
-        }
-
-        // Then check for real Supabase session
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (session?.user) {
-          await loadUserProfile(session.user)
-        }
-      } catch (error) {
-        console.error("Error checking session:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     checkSession()
-
-    // Listen for auth changes (only for real users)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
-        await loadUserProfile(session.user)
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
-        setProfile(null)
-        localStorage.removeItem("demoUserSession")
-      }
-    })
-
-    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -124,9 +76,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, pathname, router])
 
-  const loadUserProfile = async (authUser: User) => {
+  const checkSession = async () => {
     try {
-      const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", authUser.id).single()
+      // Check localStorage for demo session first
+      const demoSession = localStorage.getItem("demoUserSession")
+      if (demoSession) {
+        try {
+          const demoUser = JSON.parse(demoSession)
+          setUser(demoUser)
+          setIsLoading(false)
+          return
+        } catch (error) {
+          console.error("Error parsing demo session:", error)
+          localStorage.removeItem("demoUserSession")
+        }
+      }
+
+      // Check Supabase session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        await loadUserProfile(session.user.id)
+      }
+    } catch (error) {
+      console.error("Error checking session:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
       if (error) {
         console.error("Error loading profile:", error)
@@ -140,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: profileData.username,
           role: profileData.role,
           loginTime: new Date().toISOString(),
-          isDemo: false,
+          isDemo: profileData.id.startsWith("demo-"),
         })
       }
     } catch (error) {
@@ -150,25 +133,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string, role: string): Promise<boolean> => {
     try {
-      // Check if it's a demo user first
+      // Check if it's a demo user
       const demoUser = DEMO_USERS.find((u) => u.username === username && u.password === password && u.role === role)
 
       if (demoUser) {
-        // Handle demo user entirely in frontend
-        const userData: AuthUser = {
-          id: demoUser.id,
-          username: demoUser.username,
-          role: demoUser.role as "admin" | "masul_tahfidz" | "tim_tahfidz",
-          loginTime: new Date().toISOString(),
-          isDemo: true,
+        // For demo users, load their profile from database
+        const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", demoUser.id).single()
+
+        if (error) {
+          console.error("Error loading demo profile:", error)
+          return false
         }
 
-        // Store demo session in localStorage
-        localStorage.setItem("demoUserSession", JSON.stringify(userData))
+        if (profileData) {
+          const userData: AuthUser = {
+            id: profileData.id,
+            username: profileData.username,
+            role: profileData.role,
+            loginTime: new Date().toISOString(),
+            isDemo: true,
+          }
 
-        setUser(userData)
-        setProfile(null) // Demo users don't have database profiles
-        return true
+          // Store demo session in localStorage for persistence
+          localStorage.setItem("demoUserSession", JSON.stringify(userData))
+
+          setUser(userData)
+          setProfile(profileData)
+          return true
+        }
       }
 
       // Try Supabase auth for real users
@@ -183,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        await loadUserProfile(data.user)
+        await loadUserProfile(data.user.id)
         return true
       }
 
@@ -199,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear demo session
       localStorage.removeItem("demoUserSession")
 
-      // Sign out from Supabase (for real users)
+      // Sign out from Supabase
       await supabase.auth.signOut()
 
       setUser(null)

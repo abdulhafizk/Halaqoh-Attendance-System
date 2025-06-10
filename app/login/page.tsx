@@ -22,23 +22,23 @@ interface LoginCredentials {
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, isLoading, error: authError } = useAuth()
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: "",
     password: "",
   })
   const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const handleLogin = async () => {
-    setIsLoading(true)
+    setSubmitting(true)
     setError("")
 
     // Validate input
     if (!credentials.email || !credentials.password) {
       setError("Email dan password harus diisi!")
-      setIsLoading(false)
+      setSubmitting(false)
       return
     }
 
@@ -46,23 +46,23 @@ export default function LoginPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(credentials.email)) {
       setError("Format email tidak valid!")
-      setIsLoading(false)
+      setSubmitting(false)
       return
     }
 
     try {
-      const success = await login(credentials.email, credentials.password, "")
+      const success = await login(credentials.email, credentials.password)
 
       if (success) {
         router.push("/")
       } else {
-        setError("Email atau password tidak valid!")
+        setError(authError || "Email atau password tidak valid!")
       }
     } catch (error) {
       console.error("Login error:", error)
       setError("Terjadi kesalahan saat login. Silakan coba lagi.")
     } finally {
-      setIsLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -71,6 +71,8 @@ export default function LoginPage() {
       handleLogin()
     }
   }
+
+  const currentError = error || authError
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4 relative overflow-hidden">
@@ -110,7 +112,7 @@ export default function LoginPage() {
 
             <CardContent className="space-y-6">
               <AnimatePresence>
-                {error && (
+                {currentError && (
                   <motion.div
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -118,7 +120,7 @@ export default function LoginPage() {
                     transition={{ duration: 0.3 }}
                   >
                     <Alert variant="destructive" className="border-red-200 bg-red-50">
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
+                      <AlertDescription className="text-red-700">{currentError}</AlertDescription>
                     </Alert>
                   </motion.div>
                 )}
@@ -148,6 +150,7 @@ export default function LoginPage() {
                     onChange={(e) => setCredentials((prev) => ({ ...prev, email: e.target.value }))}
                     onKeyPress={handleKeyPress}
                     className="h-12 pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                    disabled={submitting || isLoading}
                   />
                 </div>
               </motion.div>
@@ -176,6 +179,7 @@ export default function LoginPage() {
                     onChange={(e) => setCredentials((prev) => ({ ...prev, password: e.target.value }))}
                     onKeyPress={handleKeyPress}
                     className="h-12 pl-10 pr-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                    disabled={submitting || isLoading}
                   />
                   <motion.button
                     type="button"
@@ -184,6 +188,7 @@ export default function LoginPage() {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     transition={{ type: "spring", stiffness: 400 }}
+                    disabled={submitting || isLoading}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </motion.button>
@@ -198,9 +203,9 @@ export default function LoginPage() {
                 <AnimatedButton
                   onClick={handleLogin}
                   className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl"
-                  disabled={isLoading}
+                  disabled={submitting || isLoading}
                 >
-                  {isLoading ? (
+                  {submitting || isLoading ? (
                     <div className="flex items-center gap-2">
                       <LoadingSpinner size="sm" color="white" />
                       Memproses...

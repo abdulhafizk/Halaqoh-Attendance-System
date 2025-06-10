@@ -10,16 +10,17 @@ interface AuthUser {
   username: string
   role: "admin" | "masul_tahfidz" | "tim_tahfidz"
   loginTime: string
-  isDemo?: boolean
+  email?: string
 }
 
 interface AuthContextType {
   user: AuthUser | null
   profile: Profile | null
-  login: (username: string, password: string, role: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   hasPermission: (permission: string) => boolean
   isLoading: boolean
+  error: string | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -53,11 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    checkSession()
+    initializeAuth()
   }, [])
 
   useEffect(() => {
@@ -69,82 +71,162 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, pathname, router])
 
-  const checkSession = async () => {
+  const initializeAuth = async () => {
     try {
-      // Check Supabase session for real users only
+      setError(null)
+
+      // Check current session
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession()
 
+      if (sessionError) {
+        console.error("Session error:", sessionError)
+        setIsLoading(false)
+        return
+      }
+
       if (session?.user) {
-        await loadUserProfile(session.user.id)
+        await loadUserProfile(session.user.id, session.user.email || "")
+      }
+
+      // Set up auth state listener
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log("Auth state changed:", event)
+
+        if (event === "SIGNED_IN" && session?.user) {
+          await loadUserProfile(session.user.id, session.user.email || "")
+        } else if (event === "SIGNED_OUT") {
+          setUser(null)
+          setProfile(null)
+          setError(null)
+        }
+      })
+
+      // Cleanup subscription on unmount
+      return () => {
+        subscription.unsubscribe()
       }
     } catch (error) {
-      console.error("Error checking session:", error)
+      console.error("Error initializing auth:", error)
+      setError("Failed to initialize authentication")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string, email: string) => {
     try {
-      const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
+      setError(null)
+      console.log("Loading profile for user:", userId, email)
 
-      if (error) {
-        console.error("Error loading profile:", error)
+      // Extract username from email (part before @)
+      const username = email.split("@")[0]
+      console.log("Looking for username:", username)
+
+      // Use a direct query without RLS to avoid recursion
+      // Since we disabled RLS, this should work fine
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("username", username)
+        .maybeSingle()
+
+      if (profileError) {
+        console.error("Error loading profile:", profileError)
+        setError(`Profile lookup failed: ${profileError.message}`)
         return
       }
 
       if (profileData) {
-        setProfile(profileData)
+        console.log("Profile found:", profileData)
+
+        // Update the profile ID to match the auth user ID if different
+        if (profileData.id !== userId) {
+          console.log("Updating profile ID to match auth user")
+          const { error: updateError } = await supabase.from("profiles").update({ id: userId }).eq("username", username)
+
+          if (updateError) {
+            console.error("Error updating profile ID:", updateError)
+            // Continue anyway, we can still use the profile
+          }
+        }
+
+        setProfile({ ...profileData, id: userId })
         setUser({
-          id: profileData.id,
+          id: userId,
           username: profileData.username,
           role: profileData.role,
           loginTime: new Date().toISOString(),
-          isDemo: false,
+          email: email,
         })
+      } else {
+        console.log("No profile found for username:", username)
+        setError(`No profile found for username: ${username}. Please contact administrator.`)
       }
     } catch (error) {
       console.error("Error in loadUserProfile:", error)
+      setError("Failed to load user profile")
     }
   }
 
-  const login = async (username: string, password: string, role: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Only try Supabase auth for real users (email-based login)
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: username, // Username should be email for real users
+      setError(null)
+      setIsLoading(true)
+
+      console.log("Attempting login for:", email)
+
+      // Sign in with Supabase Auth
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email,
         password: password,
       })
 
-      if (error) {
-        console.error("Login error:", error)
+      if (signInError) {
+        console.error("Login error:", signInError)
+        setError(signInError.message)
         return false
       }
 
       if (data.user) {
-        await loadUserProfile(data.user.id)
+        console.log("Login successful, user:", data.user.id)
+        // Profile will be loaded via the auth state change listener
         return true
       }
 
       return false
     } catch (error) {
       console.error("Login error:", error)
+      setError("Login failed. Please try again.")
       return false
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const logout = async () => {
     try {
+      setError(null)
+
       // Sign out from Supabase
-      await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error("Logout error:", error)
+        setError("Logout failed")
+        return
+      }
 
       setUser(null)
       setProfile(null)
       router.push("/login")
     } catch (error) {
       console.error("Logout error:", error)
+      setError("Logout failed")
     }
   }
 
@@ -154,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, login, logout, hasPermission, isLoading }}>
+    <AuthContext.Provider value={{ user, profile, login, logout, hasPermission, isLoading, error }}>
       {children}
     </AuthContext.Provider>
   )

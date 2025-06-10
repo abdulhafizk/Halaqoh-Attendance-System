@@ -49,13 +49,6 @@ const PERMISSIONS = {
   tim_tahfidz: ["view_dashboard", "manage_attendance", "manage_memorization", "view_reports"],
 }
 
-// Demo users credentials
-const DEMO_USERS = [
-  { id: "demo-admin", username: "admin", password: "admin123", role: "admin" },
-  { id: "demo-masul", username: "masul", password: "masul123", role: "masul_tahfidz" },
-  { id: "demo-tim", username: "tim", password: "tim123", role: "tim_tahfidz" },
-]
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -78,21 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkSession = async () => {
     try {
-      // Check localStorage for demo session first
-      const demoSession = localStorage.getItem("demoUserSession")
-      if (demoSession) {
-        try {
-          const demoUser = JSON.parse(demoSession)
-          setUser(demoUser)
-          setIsLoading(false)
-          return
-        } catch (error) {
-          console.error("Error parsing demo session:", error)
-          localStorage.removeItem("demoUserSession")
-        }
-      }
-
-      // Check Supabase session
+      // Check Supabase session for real users only
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -123,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: profileData.username,
           role: profileData.role,
           loginTime: new Date().toISOString(),
-          isDemo: profileData.id.startsWith("demo-"),
+          isDemo: false,
         })
       }
     } catch (error) {
@@ -133,39 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string, role: string): Promise<boolean> => {
     try {
-      // Check if it's a demo user
-      const demoUser = DEMO_USERS.find((u) => u.username === username && u.password === password && u.role === role)
-
-      if (demoUser) {
-        // For demo users, load their profile from database
-        const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", demoUser.id).single()
-
-        if (error) {
-          console.error("Error loading demo profile:", error)
-          return false
-        }
-
-        if (profileData) {
-          const userData: AuthUser = {
-            id: profileData.id,
-            username: profileData.username,
-            role: profileData.role,
-            loginTime: new Date().toISOString(),
-            isDemo: true,
-          }
-
-          // Store demo session in localStorage for persistence
-          localStorage.setItem("demoUserSession", JSON.stringify(userData))
-
-          setUser(userData)
-          setProfile(profileData)
-          return true
-        }
-      }
-
-      // Try Supabase auth for real users
+      // Only try Supabase auth for real users (email-based login)
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: username,
+        email: username, // Username should be email for real users
         password: password,
       })
 
@@ -188,9 +137,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      // Clear demo session
-      localStorage.removeItem("demoUserSession")
-
       // Sign out from Supabase
       await supabase.auth.signOut()
 

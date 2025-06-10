@@ -1,11 +1,12 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Lock, User, Shield, Eye, EyeOff, ChurchIcon as Mosque } from "lucide-react"
+import { Lock, User, Eye, EyeOff, ChurchIcon as Mosque } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { AnimatedButton } from "@/components/animated-button"
@@ -15,18 +16,16 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { useAuth } from "@/hooks/use-auth"
 
 interface LoginCredentials {
-  username: string
+  email: string
   password: string
-  role: "admin" | "masul_tahfidz" | "tim_tahfidz" | ""
 }
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [credentials, setCredentials] = useState<LoginCredentials>({
-    username: "",
+    email: "",
     password: "",
-    role: "",
   })
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -37,19 +36,27 @@ export default function LoginPage() {
     setError("")
 
     // Validate input
-    if (!credentials.username || !credentials.password || !credentials.role) {
-      setError("Semua field harus diisi!")
+    if (!credentials.email || !credentials.password) {
+      setError("Email dan password harus diisi!")
+      setIsLoading(false)
+      return
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(credentials.email)) {
+      setError("Format email tidak valid!")
       setIsLoading(false)
       return
     }
 
     try {
-      const success = await login(credentials.username, credentials.password, credentials.role)
+      const success = await login(credentials.email, credentials.password, "")
 
       if (success) {
         router.push("/")
       } else {
-        setError("Username, password, atau role tidak valid!")
+        setError("Email atau password tidak valid!")
       }
     } catch (error) {
       console.error("Login error:", error)
@@ -59,29 +66,9 @@ export default function LoginPage() {
     }
   }
 
-  const getRoleDescription = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "Akses penuh ke semua fitur sistem"
-      case "masul_tahfidz":
-        return "Akses ke manajemen data dan laporan"
-      case "tim_tahfidz":
-        return "Akses ke absensi dan input hafalan"
-      default:
-        return ""
-    }
-  }
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "admin":
-        return <Shield className="h-4 w-4 text-red-500" />
-      case "masul_tahfidz":
-        return <User className="h-4 w-4 text-blue-500" />
-      case "tim_tahfidz":
-        return <Lock className="h-4 w-4 text-green-500" />
-      default:
-        return null
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleLogin()
     }
   }
 
@@ -117,7 +104,7 @@ export default function LoginPage() {
                 <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   Sistem Absensi Halaqoh
                 </CardTitle>
-                <CardDescription className="text-gray-600 mt-2">Silakan login untuk mengakses sistem</CardDescription>
+                <CardDescription className="text-gray-600 mt-2">Masuk dengan akun yang telah terdaftar</CardDescription>
               </motion.div>
             </CardHeader>
 
@@ -143,70 +130,8 @@ export default function LoginPage() {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                <Label htmlFor="role" className="text-sm font-semibold text-gray-700">
-                  Pilih Role *
-                </Label>
-                <Select
-                  value={credentials.role}
-                  onValueChange={(value: "admin" | "masul_tahfidz" | "tim_tahfidz") =>
-                    setCredentials((prev) => ({ ...prev, role: value }))
-                  }
-                >
-                  <SelectTrigger className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 transition-all duration-200">
-                    <SelectValue placeholder="Pilih role Anda" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      { value: "admin", label: "Admin", desc: "Akses penuh sistem", color: "red" },
-                      { value: "masul_tahfidz", label: "Masul Tahfidz", desc: "Manajemen & laporan", color: "blue" },
-                      { value: "tim_tahfidz", label: "Tim Tahfidz", desc: "Absensi & hafalan", color: "green" },
-                    ].map((role) => (
-                      <SelectItem key={role.value} value={role.value}>
-                        <motion.div
-                          className="flex items-center gap-3 py-1"
-                          whileHover={{ x: 5 }}
-                          transition={{ type: "spring", stiffness: 300 }}
-                        >
-                          <div className={`w-8 h-8 bg-${role.color}-100 rounded-lg flex items-center justify-center`}>
-                            {role.value === "admin" && <Shield className={`h-4 w-4 text-${role.color}-600`} />}
-                            {role.value === "masul_tahfidz" && <User className={`h-4 w-4 text-${role.color}-600`} />}
-                            {role.value === "tim_tahfidz" && <Lock className={`h-4 w-4 text-${role.color}-600`} />}
-                          </div>
-                          <div>
-                            <div className="font-medium">{role.label}</div>
-                            <div className="text-xs text-gray-500">{role.desc}</div>
-                          </div>
-                        </motion.div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <AnimatePresence>
-                  {credentials.role && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
-                    >
-                      <p className="text-sm text-gray-700 flex items-center gap-2">
-                        {getRoleIcon(credentials.role)}
-                        <span className="font-medium">{getRoleDescription(credentials.role)}</span>
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-
-              <motion.div
-                className="space-y-2"
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-              >
-                <Label htmlFor="username" className="text-sm font-semibold text-gray-700">
-                  Username *
+                <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
+                  Email *
                 </Label>
                 <div className="relative">
                   <motion.div
@@ -217,9 +142,11 @@ export default function LoginPage() {
                     <User className="h-5 w-5 text-gray-400" />
                   </motion.div>
                   <AnimatedInput
-                    placeholder="Masukkan username"
-                    value={credentials.username}
-                    onChange={(e) => setCredentials((prev) => ({ ...prev, username: e.target.value }))}
+                    type="email"
+                    placeholder="Masukkan email"
+                    value={credentials.email}
+                    onChange={(e) => setCredentials((prev) => ({ ...prev, email: e.target.value }))}
+                    onKeyPress={handleKeyPress}
                     className="h-12 pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
@@ -229,7 +156,7 @@ export default function LoginPage() {
                 className="space-y-2"
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
               >
                 <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
                   Password *
@@ -247,6 +174,7 @@ export default function LoginPage() {
                     placeholder="Masukkan password"
                     value={credentials.password}
                     onChange={(e) => setCredentials((prev) => ({ ...prev, password: e.target.value }))}
+                    onKeyPress={handleKeyPress}
                     className="h-12 pl-10 pr-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                   <motion.button
@@ -265,7 +193,7 @@ export default function LoginPage() {
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.7, duration: 0.5 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
               >
                 <AnimatedButton
                   onClick={handleLogin}
@@ -278,54 +206,26 @@ export default function LoginPage() {
                       Memproses...
                     </div>
                   ) : (
-                    "Login"
+                    "Masuk"
                   )}
                 </AnimatedButton>
               </motion.div>
 
-              {/* Demo Credentials */}
+              {/* Information */}
               <motion.div
                 className="mt-8 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.8, duration: 0.5 }}
+                transition={{ delay: 0.7, duration: 0.5 }}
               >
-                <h4 className="font-semibold text-sm mb-4 text-gray-700 flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Demo Credentials:
+                <h4 className="font-semibold text-sm mb-2 text-gray-700 flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Informasi Login:
                 </h4>
-                <div className="space-y-3 text-xs">
-                  {[
-                    { role: "Admin", icon: Shield, color: "red", username: "admin", password: "admin123" },
-                    { role: "Masul", icon: User, color: "blue", username: "masul", password: "masul123" },
-                    { role: "Tim", icon: Lock, color: "green", username: "tim", password: "tim123" },
-                  ].map((item, index) => (
-                    <motion.div
-                      key={item.role}
-                      className="flex items-center justify-between p-2 bg-white rounded-lg shadow-sm cursor-pointer"
-                      initial={{ x: -20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: 0.9 + index * 0.1, duration: 0.3 }}
-                      whileHover={{ scale: 1.02, x: 5 }}
-                      onClick={() => {
-                        setCredentials({
-                          username: item.username,
-                          password: item.password,
-                          role: item.username as "admin" | "masul_tahfidz" | "tim_tahfidz",
-                        })
-                      }}
-                    >
-                      <span className="flex items-center gap-2">
-                        <div className={`w-6 h-6 bg-${item.color}-100 rounded-md flex items-center justify-center`}>
-                          <item.icon className={`h-3 w-3 text-${item.color}-600`} />
-                        </div>
-                        <span className="font-medium">{item.role}</span>
-                      </span>
-                      <span className="font-mono text-gray-600">
-                        {item.username} / {item.password}
-                      </span>
-                    </motion.div>
-                  ))}
+                <div className="text-xs text-gray-600 space-y-1">
+                  <p>• Gunakan email dan password yang telah didaftarkan oleh admin</p>
+                  <p>• Hubungi koordinator tahfidz jika mengalami kesulitan login</p>
+                  <p>• Pastikan koneksi internet stabil</p>
                 </div>
               </motion.div>
             </CardContent>

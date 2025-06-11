@@ -23,6 +23,7 @@ import { FadeIn } from "@/components/fade-in"
 import { StaggerContainer, StaggerItem } from "@/components/stagger-container"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { motion } from "framer-motion"
+import { supabase } from "@/lib/supabase"
 
 export default function Dashboard() {
   const { user, hasPermission, isLoading } = useAuth()
@@ -34,24 +35,120 @@ export default function Dashboard() {
     monthlyReports: 0,
   })
 
+  const loadStats = async () => {
+    if (!user) return
+
+    try {
+      // Load real data from Supabase
+      const [ustadzResponse, santriResponse, attendanceResponse, memorizationResponse] = await Promise.all([
+        supabase.from("ustadz").select("id", { count: "exact" }),
+        supabase.from("santri").select("id", { count: "exact" }),
+        supabase.from("attendance").select("id", { count: "exact" }).eq("date", new Date().toISOString().split("T")[0]),
+        supabase
+          .from("memorization")
+          .select("id", { count: "exact" })
+          .gte("date", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0])
+          .lt("date", new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString().split("T")[0]),
+      ])
+
+      setStats({
+        totalUstadz: ustadzResponse.count || 0,
+        totalSantri: santriResponse.count || 0,
+        todayAttendance: attendanceResponse.count || 0,
+        monthlyReports: memorizationResponse.count || 0,
+      })
+    } catch (error) {
+      console.error("Error loading stats:", error)
+      // Fallback to 0 if there's an error
+      setStats({
+        totalUstadz: 0,
+        totalSantri: 0,
+        todayAttendance: 0,
+        monthlyReports: 0,
+      })
+    }
+  }
+
   useEffect(() => {
-    // Load stats from localStorage
-    const ustadzData = JSON.parse(localStorage.getItem("ustadzData") || "[]")
-    const santriData = JSON.parse(localStorage.getItem("santriData") || "[]")
-    const attendanceData = JSON.parse(localStorage.getItem("attendanceData") || "[]")
+    const loadStats = async () => {
+      if (!user) return
 
-    const today = new Date().toDateString()
-    const todayAttendance = attendanceData.filter(
-      (record: any) => new Date(record.date).toDateString() === today,
-    ).length
+      try {
+        // Load real data from Supabase
+        const [ustadzResponse, santriResponse, attendanceResponse, memorizationResponse] = await Promise.all([
+          supabase.from("ustadz").select("id", { count: "exact" }),
+          supabase.from("santri").select("id", { count: "exact" }),
+          supabase
+            .from("attendance")
+            .select("id", { count: "exact" })
+            .eq("date", new Date().toISOString().split("T")[0]),
+          supabase
+            .from("memorization")
+            .select("id", { count: "exact" })
+            .gte("date", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0])
+            .lt("date", new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString().split("T")[0]),
+        ])
 
-    setStats({
-      totalUstadz: ustadzData.length,
-      totalSantri: santriData.length,
-      todayAttendance,
-      monthlyReports: 1,
-    })
-  }, [])
+        setStats({
+          totalUstadz: ustadzResponse.count || 0,
+          totalSantri: santriResponse.count || 0,
+          todayAttendance: attendanceResponse.count || 0,
+          monthlyReports: memorizationResponse.count || 0,
+        })
+      } catch (error) {
+        console.error("Error loading stats:", error)
+        // Fallback to 0 if there's an error
+        setStats({
+          totalUstadz: 0,
+          totalSantri: 0,
+          todayAttendance: 0,
+          monthlyReports: 0,
+        })
+      }
+    }
+
+    loadStats()
+  }, [user])
+
+  // Set up real-time subscriptions for stats
+  useEffect(() => {
+    if (!user) return
+
+    const ustadzChannel = supabase
+      .channel("ustadz_stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "ustadz" }, () => {
+        loadStats()
+      })
+      .subscribe()
+
+    const santriChannel = supabase
+      .channel("santri_stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "santri" }, () => {
+        loadStats()
+      })
+      .subscribe()
+
+    const attendanceChannel = supabase
+      .channel("attendance_stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance" }, () => {
+        loadStats()
+      })
+      .subscribe()
+
+    const memorizationChannel = supabase
+      .channel("memorization_stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "memorization" }, () => {
+        loadStats()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ustadzChannel)
+      supabase.removeChannel(santriChannel)
+      supabase.removeChannel(attendanceChannel)
+      supabase.removeChannel(memorizationChannel)
+    }
+  }, [user])
 
   if (isLoading) {
     return (
@@ -178,7 +275,7 @@ export default function Dashboard() {
       bgGradient: "from-purple-50 to-pink-50",
     },
     {
-      title: "Laporan Bulan Ini",
+      title: "Hafalan Bulan Ini",
       value: stats.monthlyReports,
       icon: TrendingUp,
       gradient: "from-orange-500 to-red-600",

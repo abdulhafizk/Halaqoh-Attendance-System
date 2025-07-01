@@ -6,39 +6,38 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Clock, User, ArrowLeft, CheckCircle, Save } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { UserCheck, User, ArrowLeft, Plus, Clock, AlertTriangle, Heart, FileText, Info } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Navbar } from "@/components/navbar"
-import { supabase, type Ustadz } from "@/lib/supabase-client"
-
-interface AttendanceRecord {
-  id: string
-  ustadzId: string
-  ustadzName: string
-  date: string
-  sabaq: boolean
-  sabqi: boolean
-  manzil: boolean
-  notes: string
-}
+import { supabase, type Ustadz, type Attendance } from "@/lib/supabase-client"
 
 export default function AttendancePage() {
   const { user, hasPermission, isLoading } = useAuth()
-
   const [ustadzList, setUstadzList] = useState<Ustadz[]>([])
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
+  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([])
   const [selectedUstadz, setSelectedUstadz] = useState("")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
-  const [attendance, setAttendance] = useState({
+  const [attendanceData, setAttendanceData] = useState({
     sabaq: false,
     sabqi: false,
     manzil: false,
+    alpha: false,
+    sakit: false,
+    izin: false,
+    notes: "",
   })
-  const [notes, setNotes] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
   const [hasAccess, setHasAccess] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // Check if user can access admin features (Alpha, Sakit, Izin)
+  const canAccessAdminFeatures = hasPermission("manage_users") || user?.role === "masul_tahfidz"
 
   useEffect(() => {
     if (user && hasPermission("manage_attendance")) {
@@ -58,29 +57,16 @@ export default function AttendancePage() {
             *,
             ustadz:ustadz_id (
               name,
-              halaqoh
+              kelas
             )
           `)
           .order("created_at", { ascending: false })
 
         setUstadzList(ustadzData || [])
-
-        // Transform attendance data to match interface
-        const transformedAttendance =
-          attendanceData?.map((record) => ({
-            id: record.id,
-            ustadzId: record.ustadz_id,
-            ustadzName: record.ustadz?.name || "",
-            date: record.date,
-            sabaq: record.sabaq,
-            sabqi: record.sabqi,
-            manzil: record.manzil,
-            notes: record.notes || "",
-          })) || []
-
-        setAttendanceRecords(transformedAttendance)
+        setAttendanceRecords(attendanceData || [])
       } catch (error) {
         console.error("Error loading data:", error)
+        setError("Gagal memuat data")
       }
     }
 
@@ -89,22 +75,38 @@ export default function AttendancePage() {
     }
   }, [user])
 
-  // Set up real-time subscriptions
+  // Real-time subscriptions
   useEffect(() => {
     const attendanceChannel = supabase
-      .channel("attendance_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance" }, (payload) => {
-        console.log("Attendance real-time update:", payload)
-        loadAttendanceData()
-      })
+      .channel("attendance_realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance",
+        },
+        (payload) => {
+          console.log("Real-time attendance update:", payload.eventType)
+          loadAttendanceData()
+        },
+      )
       .subscribe()
 
     const ustadzChannel = supabase
-      .channel("ustadz_changes_attendance")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ustadz" }, (payload) => {
-        console.log("Ustadz real-time update:", payload)
-        loadUstadzData()
-      })
+      .channel("ustadz_realtime_attendance")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "ustadz",
+        },
+        (payload) => {
+          console.log("Real-time ustadz update for attendance:", payload.eventType)
+          loadUstadzData()
+        },
+      )
       .subscribe()
 
     return () => {
@@ -121,24 +123,12 @@ export default function AttendancePage() {
           *,
           ustadz:ustadz_id (
             name,
-            halaqoh
+            kelas
           )
         `)
         .order("created_at", { ascending: false })
 
-      const transformedAttendance =
-        data?.map((record) => ({
-          id: record.id,
-          ustadzId: record.ustadz_id,
-          ustadzName: record.ustadz?.name || "",
-          date: record.date,
-          sabaq: record.sabaq,
-          sabqi: record.sabqi,
-          manzil: record.manzil,
-          notes: record.notes || "",
-        })) || []
-
-      setAttendanceRecords(transformedAttendance)
+      setAttendanceRecords(data || [])
     } catch (error) {
       console.error("Error loading attendance:", error)
     }
@@ -153,21 +143,168 @@ export default function AttendancePage() {
     }
   }
 
+  const handleSubmitAttendance = async () => {
+    if (!selectedUstadz) {
+      setError("Mohon pilih ustadz terlebih dahulu!")
+      return
+    }
+
+    // Validate that at least one attendance type is selected
+    const hasAnyAttendance =
+      attendanceData.sabaq ||
+      attendanceData.sabqi ||
+      attendanceData.manzil ||
+      attendanceData.alpha ||
+      attendanceData.sakit ||
+      attendanceData.izin
+
+    if (!hasAnyAttendance) {
+      setError("Mohon pilih minimal satu jenis kehadiran!")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      // Check if attendance already exists for this ustadz and date
+      const { data: existingAttendance } = await supabase
+        .from("attendance")
+        .select("id")
+        .eq("ustadz_id", selectedUstadz)
+        .eq("date", selectedDate)
+        .single()
+
+      if (existingAttendance) {
+        // Update existing attendance
+        const { error } = await supabase
+          .from("attendance")
+          .update({
+            sabaq: attendanceData.sabaq,
+            sabqi: attendanceData.sabqi,
+            manzil: attendanceData.manzil,
+            alpha: attendanceData.alpha,
+            sakit: attendanceData.sakit,
+            izin: attendanceData.izin,
+            notes: attendanceData.notes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingAttendance.id)
+
+        if (error) {
+          console.error("Error updating attendance:", error)
+          setError("Gagal memperbarui absensi: " + error.message)
+          return
+        }
+
+        setSuccess("Absensi berhasil diperbarui!")
+      } else {
+        // Create new attendance
+        const { error } = await supabase.from("attendance").insert([
+          {
+            ustadz_id: selectedUstadz,
+            date: selectedDate,
+            sabaq: attendanceData.sabaq,
+            sabqi: attendanceData.sabqi,
+            manzil: attendanceData.manzil,
+            alpha: attendanceData.alpha,
+            sakit: attendanceData.sakit,
+            izin: attendanceData.izin,
+            notes: attendanceData.notes,
+          },
+        ])
+
+        if (error) {
+          console.error("Error inserting attendance:", error)
+          setError("Gagal menyimpan absensi: " + error.message)
+          return
+        }
+
+        setSuccess("Absensi berhasil disimpan!")
+      }
+
+      // Reset form
+      setSelectedUstadz("")
+      setAttendanceData({
+        sabaq: false,
+        sabqi: false,
+        manzil: false,
+        alpha: false,
+        sakit: false,
+        izin: false,
+        notes: "",
+      })
+    } catch (error) {
+      console.error("Error submitting attendance:", error)
+      setError("Terjadi kesalahan")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getAttendanceBadges = (record: Attendance) => {
+    const badges = []
+
+    // Waktu Kehadiran (accessible by all users)
+    if (record.sabaq)
+      badges.push(
+        <Badge key="sabaq" className="bg-green-100 text-green-800">
+          Sabaq
+        </Badge>,
+      )
+    if (record.sabqi)
+      badges.push(
+        <Badge key="sabqi" className="bg-blue-100 text-blue-800">
+          Sabqi
+        </Badge>,
+      )
+    if (record.manzil)
+      badges.push(
+        <Badge key="manzil" className="bg-purple-100 text-purple-800">
+          Manzil
+        </Badge>,
+      )
+
+    // Status Ketidakhadiran (only for admin/masul)
+    if (record.alpha)
+      badges.push(
+        <Badge key="alpha" className="bg-red-100 text-red-800">
+          Alpha
+        </Badge>,
+      )
+    if (record.sakit)
+      badges.push(
+        <Badge key="sakit" className="bg-orange-100 text-orange-800">
+          Sakit
+        </Badge>,
+      )
+    if (record.izin)
+      badges.push(
+        <Badge key="izin" className="bg-yellow-100 text-yellow-800">
+          Izin
+        </Badge>,
+      )
+
+    return badges
+  }
+
+  const getRecentAttendance = () => {
+    return attendanceRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10)
+  }
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
-        <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
       </div>
     )
   }
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-xl">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="h-8 w-8 text-red-600" />
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-2">Akses Ditolak</h1>
           <p className="text-gray-600">Anda tidak memiliki izin untuk mengakses halaman ini.</p>
         </div>
@@ -175,101 +312,64 @@ export default function AttendancePage() {
     )
   }
 
-  const handleSubmitAttendance = async () => {
-    if (!selectedUstadz) return
-
-    setIsSaving(true)
-
-    try {
-      const { error } = await supabase.from("attendance").insert([
-        {
-          ustadz_id: selectedUstadz,
-          date: selectedDate,
-          sabaq: attendance.sabaq,
-          sabqi: attendance.sabqi,
-          manzil: attendance.manzil,
-          notes: notes,
-        },
-      ])
-
-      if (error) {
-        console.error("Error inserting attendance:", error)
-        alert("Gagal menyimpan absensi: " + error.message)
-        return
-      }
-
-      // Reset form
-      setSelectedUstadz("")
-      setAttendance({ sabaq: false, sabqi: false, manzil: false })
-      setNotes("")
-
-      alert("Absensi berhasil disimpan!")
-    } catch (error) {
-      console.error("Error submitting attendance:", error)
-      alert("Terjadi kesalahan")
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const getTodayAttendance = () => {
-    const today = new Date().toDateString()
-    return attendanceRecords.filter((record) => new Date(record.date).toDateString() === today)
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       <Navbar />
-      <div className="p-6">
+      <div className="p-4">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <Link href="/">
-              <Button variant="ghost" className="mb-4 hover:bg-white/50 rounded-xl">
+              <Button variant="ghost" className="mb-4">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Kembali ke Dashboard
               </Button>
             </Link>
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-8 text-white shadow-xl">
-              <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                <Calendar className="h-8 w-8" />
-                Absensi Ustadz
-              </h1>
-              <p className="text-emerald-100">Catat kehadiran Ustadz untuk Sabaq, Sabqi, dan Manzil</p>
-            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Absensi Ustadz</h1>
+            <p className="text-gray-600">Catat kehadiran ustadz dalam kegiatan kelas tahfidz</p>
+
+            {canAccessAdminFeatures && (
+              <Alert className="mt-4 border-blue-200 bg-blue-50">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-blue-700">
+                  <strong>Admin/Masul:</strong> Anda memiliki akses ke fitur Alpha, Sakit, dan Izin.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Form Absensi */}
-            <Card className="border-0 shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-t-lg">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Form Input Absensi */}
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Save className="h-5 w-5" />
-                  Form Absensi
+                  <Plus className="h-5 w-5" />
+                  Input Absensi
                 </CardTitle>
-                <CardDescription className="text-emerald-100">Isi absensi Ustadz untuk hari ini</CardDescription>
+                <CardDescription>Catat kehadiran ustadz</CardDescription>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                {success && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <AlertDescription className="text-green-700">{success}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="ustadz" className="text-sm font-semibold text-gray-700">
-                    Pilih Ustadz
-                  </Label>
+                  <Label htmlFor="ustadz">Pilih Ustadz *</Label>
                   <Select value={selectedUstadz} onValueChange={setSelectedUstadz}>
-                    <SelectTrigger className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Ustadz" />
                     </SelectTrigger>
                     <SelectContent>
                       {ustadzList.map((ustadz) => (
                         <SelectItem key={ustadz.id} value={ustadz.id}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                              <User className="h-4 w-4 text-emerald-600" />
-                            </div>
-                            <div>
-                              <div className="font-medium">{ustadz.name}</div>
-                              <div className="text-xs text-gray-500">{ustadz.halaqoh}</div>
-                            </div>
-                          </div>
+                          {ustadz.name} - {ustadz.kelas}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -277,126 +377,164 @@ export default function AttendancePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date" className="text-sm font-semibold text-gray-700">
-                    Tanggal
-                  </Label>
-                  <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
-                  />
+                  <Label htmlFor="date">Tanggal</Label>
+                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
                 </div>
 
-                <div className="space-y-4">
-                  <Label className="text-sm font-semibold text-gray-700">Waktu Kehadiran</Label>
-                  <div className="space-y-3">
-                    {[
-                      { key: "sabaq", label: "Sabaq (Hafalan Baru)", color: "emerald" },
-                      { key: "sabqi", label: "Sabqi (Muraja'ah Dekat)", color: "blue" },
-                      { key: "manzil", label: "Manzil (Muraja'ah Jauh)", color: "purple" },
-                    ].map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          id={item.key}
-                          checked={attendance[item.key as keyof typeof attendance]}
-                          onChange={(e) => setAttendance((prev) => ({ ...prev, [item.key]: e.target.checked }))}
-                          className={`w-5 h-5 text-${item.color}-600 bg-gray-100 border-gray-300 rounded focus:ring-${item.color}-500 focus:ring-2`}
-                        />
-                        <Label htmlFor={item.key} className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
-                          {item.label}
-                        </Label>
-                        {attendance[item.key as keyof typeof attendance] && (
-                          <CheckCircle className={`h-5 w-5 text-${item.color}-600`} />
-                        )}
-                      </div>
-                    ))}
+                {/* Waktu Kehadiran - Accessible by all users */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold text-gray-900">Waktu Kehadiran</Label>
+                  <div className="grid grid-cols-1 gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sabaq"
+                        checked={attendanceData.sabaq}
+                        onCheckedChange={(checked) =>
+                          setAttendanceData((prev) => ({ ...prev, sabaq: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="sabaq" className="flex items-center gap-2 cursor-pointer">
+                        <Clock className="h-4 w-4 text-green-600" />
+                        Sabaq
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sabqi"
+                        checked={attendanceData.sabqi}
+                        onCheckedChange={(checked) =>
+                          setAttendanceData((prev) => ({ ...prev, sabqi: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="sabqi" className="flex items-center gap-2 cursor-pointer">
+                        <Clock className="h-4 w-4 text-blue-600" />
+                        Sabqi
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="manzil"
+                        checked={attendanceData.manzil}
+                        onCheckedChange={(checked) =>
+                          setAttendanceData((prev) => ({ ...prev, manzil: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="manzil" className="flex items-center gap-2 cursor-pointer">
+                        <Clock className="h-4 w-4 text-purple-600" />
+                        Manzil
+                      </Label>
+                    </div>
                   </div>
                 </div>
 
+                {/* Status Ketidakhadiran - Only for Admin/Masul */}
+                {canAccessAdminFeatures && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-base font-semibold text-gray-900">Status Ketidakhadiran</Label>
+                      <Badge variant="outline" className="text-xs">
+                        Admin/Masul
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="alpha"
+                          checked={attendanceData.alpha}
+                          onCheckedChange={(checked) =>
+                            setAttendanceData((prev) => ({ ...prev, alpha: checked as boolean }))
+                          }
+                        />
+                        <Label htmlFor="alpha" className="flex items-center gap-2 cursor-pointer">
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                          Alpha
+                        </Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="sakit"
+                          checked={attendanceData.sakit}
+                          onCheckedChange={(checked) =>
+                            setAttendanceData((prev) => ({ ...prev, sakit: checked as boolean }))
+                          }
+                        />
+                        <Label htmlFor="sakit" className="flex items-center gap-2 cursor-pointer">
+                          <Heart className="h-4 w-4 text-orange-600" />
+                          Sakit
+                        </Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="izin"
+                          checked={attendanceData.izin}
+                          onCheckedChange={(checked) =>
+                            setAttendanceData((prev) => ({ ...prev, izin: checked as boolean }))
+                          }
+                        />
+                        <Label htmlFor="izin" className="flex items-center gap-2 cursor-pointer">
+                          <FileText className="h-4 w-4 text-yellow-600" />
+                          Izin
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-sm font-semibold text-gray-700">
-                    Catatan (Opsional)
-                  </Label>
-                  <Input
-                    placeholder="Tambahkan catatan..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                  <Label htmlFor="notes">Catatan</Label>
+                  <Textarea
+                    placeholder="Catatan tambahan..."
+                    value={attendanceData.notes}
+                    onChange={(e) => setAttendanceData((prev) => ({ ...prev, notes: e.target.value }))}
                   />
                 </div>
 
                 <Button
                   onClick={handleSubmitAttendance}
-                  className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                  disabled={!selectedUstadz || isSaving}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={!selectedUstadz || loading}
                 >
-                  {isSaving ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Menyimpan...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Save className="h-4 w-4" />
-                      Simpan Absensi
-                    </div>
-                  )}
+                  {loading ? "Menyimpan..." : "Simpan Absensi"}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Absensi Hari Ini */}
-            <Card className="border-0 shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
+            {/* Daftar Absensi Terbaru */}
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Absensi Hari Ini
+                  <UserCheck className="h-5 w-5" />
+                  Absensi Terbaru
                 </CardTitle>
-                <CardDescription className="text-blue-100">Daftar Ustadz yang sudah absen hari ini</CardDescription>
+                <CardDescription>10 data absensi terbaru yang diinput</CardDescription>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {getTodayAttendance().length === 0 ? (
-                    <div className="text-center py-8">
-                      <Clock className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500">Belum ada absensi hari ini</p>
-                    </div>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {getRecentAttendance().length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">Belum ada data absensi</p>
                   ) : (
-                    getTodayAttendance().map((record) => (
-                      <div
-                        key={record.id}
-                        className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <User className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <span className="font-semibold text-gray-900">{record.ustadzName}</span>
-                              <p className="text-sm text-gray-500">
-                                {new Date(record.date).toLocaleDateString("id-ID")}
-                              </p>
-                            </div>
+                    getRecentAttendance().map((record) => (
+                      <div key={record.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <span className="font-medium">{record.ustadz?.name}</span>
                           </div>
+                          <span className="text-sm text-gray-500">
+                            {new Date(record.date).toLocaleDateString("id-ID")}
+                          </span>
                         </div>
-                        <div className="flex gap-2 flex-wrap mb-3">
-                          {record.sabaq && (
-                            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Sabaq</Badge>
-                          )}
-                          {record.sabqi && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Sabqi</Badge>}
-                          {record.manzil && (
-                            <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">Manzil</Badge>
-                          )}
+                        <div className="space-y-2">
+                          <p className="text-sm">
+                            <span className="font-medium">Kelas:</span> {record.ustadz?.kelas}
+                          </p>
+                          <div className="flex flex-wrap gap-1">{getAttendanceBadges(record)}</div>
+                          {record.notes && <p className="text-sm text-gray-600 mt-2">{record.notes}</p>}
                         </div>
-                        {record.notes && (
-                          <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">{record.notes}</p>
-                        )}
                       </div>
                     ))
                   )}

@@ -21,7 +21,7 @@ export default function SantriPage() {
   const [editingId, setEditingId] = useState("")
   const [formData, setFormData] = useState({
     name: "",
-    halaqoh: "",
+    kelas: "",
     age: "",
     parentName: "",
     phone: "",
@@ -53,22 +53,38 @@ export default function SantriPage() {
     }
   }, [user])
 
-  // Set up real-time subscriptions
+  // Real-time subscriptions
   useEffect(() => {
     const santriChannel = supabase
-      .channel("santri_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "santri" }, (payload) => {
-        console.log("Santri real-time update:", payload)
-        loadSantriData()
-      })
+      .channel("santri_realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "santri",
+        },
+        (payload) => {
+          console.log("Real-time santri update:", payload.eventType)
+          loadSantriData()
+        },
+      )
       .subscribe()
 
     const ustadzChannel = supabase
-      .channel("ustadz_changes_santri")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ustadz" }, (payload) => {
-        console.log("Ustadz real-time update:", payload)
-        loadUstadzData()
-      })
+      .channel("ustadz_realtime_santri")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "ustadz",
+        },
+        (payload) => {
+          console.log("Real-time ustadz update for santri:", payload.eventType)
+          loadUstadzData()
+        },
+      )
       .subscribe()
 
     return () => {
@@ -115,8 +131,8 @@ export default function SantriPage() {
   }
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.halaqoh) {
-      alert("Nama dan Halaqoh wajib diisi!")
+    if (!formData.name || !formData.kelas) {
+      alert("Nama dan Kelas wajib diisi!")
       return
     }
 
@@ -128,7 +144,7 @@ export default function SantriPage() {
           .from("santri")
           .update({
             name: formData.name,
-            halaqoh: formData.halaqoh,
+            kelas: formData.kelas,
             age: formData.age,
             parent_name: formData.parentName,
             phone: formData.phone,
@@ -142,7 +158,7 @@ export default function SantriPage() {
         const { error } = await supabase.from("santri").insert([
           {
             name: formData.name,
-            halaqoh: formData.halaqoh,
+            kelas: formData.kelas,
             age: formData.age,
             parent_name: formData.parentName,
             phone: formData.phone,
@@ -154,7 +170,7 @@ export default function SantriPage() {
       }
 
       // Reset form
-      setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
+      setFormData({ name: "", kelas: "", age: "", parentName: "", phone: "", address: "" })
       setIsEditing(false)
       setEditingId("")
 
@@ -170,7 +186,7 @@ export default function SantriPage() {
   const handleEdit = (santri: Santri) => {
     setFormData({
       name: santri.name,
-      halaqoh: santri.halaqoh,
+      kelas: santri.kelas,
       age: santri.age || "",
       parentName: santri.parent_name || "",
       phone: santri.phone || "",
@@ -200,7 +216,7 @@ export default function SantriPage() {
   }
 
   const handleCancel = () => {
-    setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
+    setFormData({ name: "", kelas: "", age: "", parentName: "", phone: "", address: "" })
     setIsEditing(false)
     setEditingId("")
   }
@@ -224,7 +240,7 @@ export default function SantriPage() {
 
       // Parse CSV
       const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-      const requiredHeaders = ["nama", "halaqoh"]
+      const requiredHeaders = ["nama", "kelas"]
 
       const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h))
       if (missingHeaders.length > 0) {
@@ -245,7 +261,7 @@ export default function SantriPage() {
 
         importedData.push({
           name: rowData.nama,
-          halaqoh: rowData.halaqoh,
+          kelas: rowData.kelas,
           age: rowData.usia || rowData.age || "",
           parent_name: rowData.nama_orangtua || rowData.parent_name || "",
           phone: rowData.telepon || rowData.phone || "",
@@ -276,7 +292,7 @@ export default function SantriPage() {
 
   const downloadTemplate = () => {
     const csvContent =
-      "data:text/csv;charset=utf-8,nama,halaqoh,usia,nama_orangtua,telepon,alamat\nAhmad Santri,Halaqoh A,12 tahun,Bapak Ahmad,08123456789,Jl. Contoh No. 1\nBudi Santri,Halaqoh B,13 tahun,Bapak Budi,08987654321,Jl. Contoh No. 2"
+      "data:text/csv;charset=utf-8,nama,kelas,usia,nama_orangtua,telepon,alamat\nAhmad Santri,Kelas A,12 tahun,Bapak Ahmad,08123456789,Jl. Contoh No. 1\nBudi Santri,Kelas B,13 tahun,Bapak Budi,08987654321,Jl. Contoh No. 2"
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
     link.setAttribute("href", encodedUri)
@@ -286,13 +302,13 @@ export default function SantriPage() {
     document.body.removeChild(link)
   }
 
-  const getAvailableHalaqoh = () => {
-    const halaqohList = ustadzList.map((ustadz) => ustadz.halaqoh)
-    return [...new Set(halaqohList)]
+  const getAvailableKelas = () => {
+    const kelasList = ustadzList.map((ustadz) => ustadz.kelas)
+    return [...new Set(kelasList)]
   }
 
-  const getSantriByHalaqoh = (halaqoh: string) => {
-    return santriList.filter((santri) => santri.halaqoh === halaqoh)
+  const getSantriByKelas = (kelas: string) => {
+    return santriList.filter((santri) => santri.kelas === kelas)
   }
 
   return (
@@ -308,7 +324,7 @@ export default function SantriPage() {
               </Button>
             </Link>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Data Santri</h1>
-            <p className="text-gray-600">Kelola data santri dan penempatan Halaqoh</p>
+            <p className="text-gray-600">Kelola data santri dan penempatan kelas</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -320,7 +336,7 @@ export default function SantriPage() {
                   {isEditing ? "Edit Santri" : "Tambah Santri Baru"}
                 </CardTitle>
                 <CardDescription>
-                  {isEditing ? "Perbarui data Santri" : "Tambahkan Santri baru ke Halaqoh"}
+                  {isEditing ? "Perbarui data Santri" : "Tambahkan Santri baru ke kelas"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -334,18 +350,18 @@ export default function SantriPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="halaqoh">Halaqoh *</Label>
+                  <Label htmlFor="kelas">Kelas *</Label>
                   <Select
-                    value={formData.halaqoh}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, halaqoh: value }))}
+                    value={formData.kelas}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, kelas: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih Halaqoh" />
+                      <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAvailableHalaqoh().map((halaqoh) => (
-                        <SelectItem key={halaqoh} value={halaqoh}>
-                          {halaqoh}
+                      {getAvailableKelas().map((kelas) => (
+                        <SelectItem key={kelas} value={kelas}>
+                          {kelas}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -392,12 +408,12 @@ export default function SantriPage() {
                   <Button
                     onClick={handleSubmit}
                     className="flex-1 bg-teal-600 hover:bg-teal-700"
-                    disabled={!formData.name || !formData.halaqoh || loading}
+                    disabled={!formData.name || !formData.kelas || loading}
                   >
                     {loading ? "Menyimpan..." : isEditing ? "Perbarui" : "Tambah"} Santri
                   </Button>
                   {isEditing && (
-                    <Button onClick={handleCancel} variant="outline" className="flex-1">
+                    <Button onClick={handleCancel} variant="outline" className="flex-1 bg-transparent">
                       Batal
                     </Button>
                   )}
@@ -424,7 +440,7 @@ export default function SantriPage() {
                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
-                  <p className="text-sm text-gray-500">Format: nama, halaqoh, usia, nama_orangtua, telepon, alamat</p>
+                  <p className="text-sm text-gray-500">Format: nama, kelas, usia, nama_orangtua, telepon, alamat</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -435,7 +451,7 @@ export default function SantriPage() {
                   >
                     {importing ? "Mengimpor..." : "Import Data"}
                   </Button>
-                  <Button onClick={downloadTemplate} variant="outline" className="flex-1">
+                  <Button onClick={downloadTemplate} variant="outline" className="flex-1 bg-transparent">
                     Download Template
                   </Button>
                 </div>
@@ -464,7 +480,7 @@ export default function SantriPage() {
                           <div className="flex-1">
                             <h3 className="font-medium text-lg">{santri.name}</h3>
                             <Badge variant="secondary" className="mb-2">
-                              {santri.halaqoh}
+                              {santri.kelas}
                             </Badge>
                             {santri.age && (
                               <p className="text-sm text-gray-600">
@@ -509,23 +525,23 @@ export default function SantriPage() {
             </Card>
           </div>
 
-          {/* Santri per Halaqoh */}
-          {getAvailableHalaqoh().length > 0 && (
+          {/* Santri per Kelas */}
+          {getAvailableKelas().length > 0 && (
             <Card className="mt-6">
               <CardHeader>
-                <CardTitle>Santri per Halaqoh</CardTitle>
-                <CardDescription>Distribusi santri di setiap Halaqoh</CardDescription>
+                <CardTitle>Santri per Kelas</CardTitle>
+                <CardDescription>Distribusi santri di setiap kelas</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getAvailableHalaqoh().map((halaqoh) => (
-                    <div key={halaqoh} className="border rounded-lg p-4">
-                      <h3 className="font-medium text-lg mb-2">{halaqoh}</h3>
+                  {getAvailableKelas().map((kelas) => (
+                    <div key={kelas} className="border rounded-lg p-4">
+                      <h3 className="font-medium text-lg mb-2">{kelas}</h3>
                       <Badge variant="outline" className="mb-3">
-                        {getSantriByHalaqoh(halaqoh).length} Santri
+                        {getSantriByKelas(kelas).length} Santri
                       </Badge>
                       <div className="space-y-1">
-                        {getSantriByHalaqoh(halaqoh).map((santri) => (
+                        {getSantriByKelas(kelas).map((santri) => (
                           <p key={santri.id} className="text-sm text-gray-600">
                             • {santri.name}
                           </p>

@@ -18,7 +18,7 @@ export default function MemorizationPage() {
   const { user, hasPermission, isLoading } = useAuth()
   const [santriList, setSantriList] = useState<Santri[]>([])
   const [memorizationRecords, setMemorizationRecords] = useState<Memorization[]>([])
-  const [selectedHalaqoh, setSelectedHalaqoh] = useState("")
+  const [selectedKelas, setSelectedKelas] = useState("")
   const [selectedSantri, setSelectedSantri] = useState("")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
   const [formData, setFormData] = useState({
@@ -49,7 +49,7 @@ export default function MemorizationPage() {
             *,
             santri:santri_id (
               name,
-              halaqoh
+              kelas
             )
           `)
           .order("created_at", { ascending: false })
@@ -66,22 +66,38 @@ export default function MemorizationPage() {
     }
   }, [user])
 
-  // Set up real-time subscriptions
+  // Real-time subscriptions
   useEffect(() => {
     const memorizationChannel = supabase
-      .channel("memorization_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "memorization" }, (payload) => {
-        console.log("Memorization real-time update:", payload)
-        loadMemorizationData()
-      })
+      .channel("memorization_realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "memorization",
+        },
+        (payload) => {
+          console.log("Real-time memorization update:", payload.eventType)
+          loadMemorizationData()
+        },
+      )
       .subscribe()
 
     const santriChannel = supabase
-      .channel("santri_changes_memorization")
-      .on("postgres_changes", { event: "*", schema: "public", table: "santri" }, (payload) => {
-        console.log("Santri real-time update:", payload)
-        loadSantriData()
-      })
+      .channel("santri_realtime_memorization")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "santri",
+        },
+        (payload) => {
+          console.log("Real-time santri update for memorization:", payload.eventType)
+          loadSantriData()
+        },
+      )
       .subscribe()
 
     return () => {
@@ -98,7 +114,7 @@ export default function MemorizationPage() {
           *,
           santri:santri_id (
             name,
-            halaqoh
+            kelas
           )
         `)
         .order("created_at", { ascending: false })
@@ -118,13 +134,13 @@ export default function MemorizationPage() {
     }
   }
 
-  const getAvailableHalaqoh = () => {
-    const halaqohList = santriList.map((santri) => santri.halaqoh)
-    return [...new Set(halaqohList)].filter(Boolean)
+  const getAvailableKelas = () => {
+    const kelasList = santriList.map((santri) => santri.kelas)
+    return [...new Set(kelasList)].filter(Boolean)
   }
 
-  const getSantriByHalaqoh = (halaqoh: string) => {
-    return santriList.filter((santri) => santri.halaqoh === halaqoh)
+  const getSantriByKelas = (kelas: string) => {
+    return santriList.filter((santri) => santri.kelas === kelas)
   }
 
   const handleSubmitMemorization = async () => {
@@ -155,7 +171,7 @@ export default function MemorizationPage() {
       }
 
       // Reset form
-      setSelectedHalaqoh("")
+      setSelectedKelas("")
       setSelectedSantri("")
       setFormData({
         surah: "",
@@ -223,7 +239,7 @@ export default function MemorizationPage() {
               </Button>
             </Link>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Hafalan Santri</h1>
-            <p className="text-gray-600">Kelola dan rekap hafalan santri di setiap Halaqoh</p>
+            <p className="text-gray-600">Kelola dan rekap hafalan santri di setiap kelas</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -238,21 +254,21 @@ export default function MemorizationPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="halaqoh">Pilih Halaqoh *</Label>
+                  <Label htmlFor="kelas">Pilih Kelas *</Label>
                   <Select
-                    value={selectedHalaqoh}
+                    value={selectedKelas}
                     onValueChange={(value) => {
-                      setSelectedHalaqoh(value)
-                      setSelectedSantri("") // Reset santri selection when halaqoh changes
+                      setSelectedKelas(value)
+                      setSelectedSantri("") // Reset santri selection when kelas changes
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih Halaqoh" />
+                      <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAvailableHalaqoh().map((halaqoh) => (
-                        <SelectItem key={halaqoh} value={halaqoh}>
-                          {halaqoh}
+                      {getAvailableKelas().map((kelas) => (
+                        <SelectItem key={kelas} value={kelas}>
+                          {kelas}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -261,12 +277,12 @@ export default function MemorizationPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="santri">Pilih Santri *</Label>
-                  <Select value={selectedSantri} onValueChange={setSelectedSantri} disabled={!selectedHalaqoh}>
+                  <Select value={selectedSantri} onValueChange={setSelectedSantri} disabled={!selectedKelas}>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedHalaqoh ? "Pilih Santri" : "Pilih Halaqoh terlebih dahulu"} />
+                      <SelectValue placeholder={selectedKelas ? "Pilih Santri" : "Pilih Kelas terlebih dahulu"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {getSantriByHalaqoh(selectedHalaqoh).map((santri) => (
+                      {getSantriByKelas(selectedKelas).map((santri) => (
                         <SelectItem key={santri.id} value={santri.id}>
                           {santri.name}
                         </SelectItem>
@@ -386,7 +402,7 @@ export default function MemorizationPage() {
                             <span className="font-medium">Ayat:</span> {record.ayah_from} - {record.ayah_to}
                           </p>
                           <p className="text-sm">
-                            <span className="font-medium">Halaqoh:</span> {record.santri?.halaqoh}
+                            <span className="font-medium">Kelas:</span> {record.santri?.kelas}
                           </p>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">Kualitas:</span>

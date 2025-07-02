@@ -20,11 +20,8 @@ export default function MemorizationPage() {
   const [memorizationRecords, setMemorizationRecords] = useState<Memorization[]>([])
   const [selectedKelas, setSelectedKelas] = useState("")
   const [selectedSantri, setSelectedSantri] = useState("")
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
   const [formData, setFormData] = useState({
-    surah: "",
-    ayahFrom: "",
-    ayahTo: "",
+    totalHafalan: "",
     quality: "",
     notes: "",
   })
@@ -144,7 +141,7 @@ export default function MemorizationPage() {
   }
 
   const handleSubmitMemorization = async () => {
-    if (!selectedSantri || !formData.surah || !formData.ayahFrom || !formData.ayahTo || !formData.quality) {
+    if (!selectedSantri || !formData.totalHafalan || !formData.quality) {
       alert("Mohon lengkapi semua field yang wajib!")
       return
     }
@@ -155,10 +152,10 @@ export default function MemorizationPage() {
       const { error } = await supabase.from("memorization").insert([
         {
           santri_id: selectedSantri,
-          date: selectedDate,
-          surah: formData.surah,
-          ayah_from: Number.parseInt(formData.ayahFrom),
-          ayah_to: Number.parseInt(formData.ayahTo),
+          date: new Date().toISOString().split("T")[0], // Auto set to today
+          surah: "Total Hafalan", // Default value
+          ayah_from: 0, // Default value
+          ayah_to: Number.parseFloat(formData.totalHafalan), // Store total hafalan in ayah_to field
           quality: formData.quality,
           notes: formData.notes,
         },
@@ -174,9 +171,7 @@ export default function MemorizationPage() {
       setSelectedKelas("")
       setSelectedSantri("")
       setFormData({
-        surah: "",
-        ayahFrom: "",
-        ayahTo: "",
+        totalHafalan: "",
         quality: "",
         notes: "",
       })
@@ -250,7 +245,7 @@ export default function MemorizationPage() {
                   <Plus className="h-5 w-5" />
                   Input Hafalan Santri
                 </CardTitle>
-                <CardDescription>Catat progress hafalan santri</CardDescription>
+                <CardDescription>Catat progress hafalan santri dalam Juz</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -292,38 +287,19 @@ export default function MemorizationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date">Tanggal</Label>
-                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="surah">Nama Surah *</Label>
+                  <Label htmlFor="totalHafalan">Total Hafalan (Juz) *</Label>
                   <Input
-                    placeholder="Contoh: Al-Fatihah"
-                    value={formData.surah}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, surah: e.target.value }))}
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="30"
+                    placeholder="Contoh: 2.5"
+                    value={formData.totalHafalan}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, totalHafalan: e.target.value }))}
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ayahFrom">Ayat Dari *</Label>
-                    <Input
-                      type="number"
-                      placeholder="1"
-                      value={formData.ayahFrom}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, ayahFrom: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ayahTo">Ayat Sampai *</Label>
-                    <Input
-                      type="number"
-                      placeholder="7"
-                      value={formData.ayahTo}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, ayahTo: e.target.value }))}
-                    />
-                  </div>
+                  <p className="text-xs text-gray-500">
+                    Masukkan jumlah Juz yang telah dihafal (bisa desimal, contoh: 2.5)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -355,14 +331,7 @@ export default function MemorizationPage() {
                 <Button
                   onClick={handleSubmitMemorization}
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={
-                    !selectedSantri ||
-                    !formData.surah ||
-                    !formData.ayahFrom ||
-                    !formData.ayahTo ||
-                    !formData.quality ||
-                    loading
-                  }
+                  disabled={!selectedSantri || !formData.totalHafalan || !formData.quality || loading}
                 >
                   {loading ? "Menyimpan..." : "Simpan Data Hafalan"}
                 </Button>
@@ -396,10 +365,7 @@ export default function MemorizationPage() {
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm">
-                            <span className="font-medium">Surah:</span> {record.surah}
-                          </p>
-                          <p className="text-sm">
-                            <span className="font-medium">Ayat:</span> {record.ayah_from} - {record.ayah_to}
+                            <span className="font-medium">Total Hafalan:</span> {record.ayah_to} Juz
                           </p>
                           <p className="text-sm">
                             <span className="font-medium">Kelas:</span> {record.santri?.kelas}

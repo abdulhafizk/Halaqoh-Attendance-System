@@ -21,10 +21,9 @@ interface MemorizationRecord {
   id: string
   santriId: string
   santriName: string
-  halaqoh: string
+  kelas: string
   date: string
-  totalSetoran: number
-  totalHafalan: number
+  totalHafalan: number // Now represents Juz
   quality: "Baik" | "Cukup" | "Kurang"
   notes: string
 }
@@ -32,9 +31,8 @@ interface MemorizationRecord {
 interface SantriRecap {
   santriId: string
   santriName: string
-  halaqoh: string
-  totalSetoranBulan: number
-  totalHafalanBulan: number
+  kelas: string
+  totalHafalanJuz: number
   averageQuality: number
   qualityDistribution: {
     baik: number
@@ -44,10 +42,9 @@ interface SantriRecap {
   notes: string
 }
 
-interface HalaqohSummary {
-  halaqoh: string
+interface KelasSummary {
+  kelas: string
   totalSantri: number
-  totalSetoran: number
   totalHafalan: number
   averageQuality: number
   activeSantri: number
@@ -58,7 +55,7 @@ export default function MemorizationRecapPage() {
   const [memorizationRecords, setMemorizationRecords] = useState<MemorizationRecord[]>([])
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [selectedHalaqoh, setSelectedHalaqoh] = useState("all")
+  const [selectedKelas, setSelectedKelas] = useState("all")
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -88,7 +85,7 @@ export default function MemorizationRecapPage() {
             *,
             santri:santri_id (
               name,
-              halaqoh
+              kelas
             )
           `)
           .order("created_at", { ascending: false })
@@ -105,10 +102,9 @@ export default function MemorizationRecapPage() {
             id: record.id,
             santriId: record.santri_id,
             santriName: record.santri?.name || "",
-            halaqoh: record.santri?.halaqoh || "",
+            kelas: record.santri?.kelas || "",
             date: record.date,
-            totalSetoran: record.total_setoran || 0,
-            totalHafalan: record.total_hafalan || 0,
+            totalHafalan: record.ayah_to || 0, // ayah_to now stores total Juz
             quality: record.quality as "Baik" | "Cukup" | "Kurang",
             notes: record.notes || "",
           })) || []
@@ -128,15 +124,15 @@ export default function MemorizationRecapPage() {
       const recordDate = new Date(record.date)
       const monthMatch = recordDate.getMonth() === selectedMonth
       const yearMatch = recordDate.getFullYear() === selectedYear
-      const halaqohMatch = selectedHalaqoh === "all" || record.halaqoh === selectedHalaqoh
+      const kelasMatch = selectedKelas === "all" || record.kelas === selectedKelas
 
-      return monthMatch && yearMatch && halaqohMatch
+      return monthMatch && yearMatch && kelasMatch
     })
   }
 
-  const getAvailableHalaqoh = () => {
-    const halaqohList = memorizationRecords.map((record) => record.halaqoh)
-    return [...new Set(halaqohList)].filter(Boolean)
+  const getAvailableKelas = () => {
+    const kelasList = memorizationRecords.map((record) => record.kelas)
+    return [...new Set(kelasList)].filter(Boolean)
   }
 
   const getSantriRecap = (): SantriRecap[] => {
@@ -154,8 +150,10 @@ export default function MemorizationRecapPage() {
     // Calculate recap for each santri
     return Array.from(santriMap.entries())
       .map(([santriId, records]) => {
-        const totalSetoranBulan = records.reduce((sum, record) => sum + record.totalSetoran, 0)
-        const totalHafalanBulan = records.reduce((sum, record) => sum + record.totalHafalan, 0)
+        // Get the latest hafalan record (highest total)
+        const latestRecord = records.reduce((latest, current) =>
+          current.totalHafalan > latest.totalHafalan ? current : latest,
+        )
 
         const qualityDistribution = {
           baik: records.filter((r) => r.quality === "Baik").length,
@@ -167,14 +165,11 @@ export default function MemorizationRecapPage() {
           qualityDistribution.baik * 3 + qualityDistribution.cukup * 2 + qualityDistribution.kurang * 1
         const averageQuality = records.length > 0 ? qualityScore / records.length : 0
 
-        const lastRecord = records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-
         return {
           santriId,
-          santriName: lastRecord.santriName,
-          halaqoh: lastRecord.halaqoh,
-          totalSetoranBulan,
-          totalHafalanBulan,
+          santriName: latestRecord.santriName,
+          kelas: latestRecord.kelas,
+          totalHafalanJuz: latestRecord.totalHafalan,
           averageQuality,
           qualityDistribution,
           notes:
@@ -187,36 +182,34 @@ export default function MemorizationRecapPage() {
       .sort((a, b) => a.santriName.localeCompare(b.santriName))
   }
 
-  const getHalaqohSummary = (): HalaqohSummary[] => {
+  const getKelasSummary = (): KelasSummary[] => {
     const santriRecap = getSantriRecap()
-    const halaqohMap = new Map<string, SantriRecap[]>()
+    const kelasMap = new Map<string, SantriRecap[]>()
 
-    // Group by halaqoh
+    // Group by kelas
     santriRecap.forEach((santri) => {
-      if (!halaqohMap.has(santri.halaqoh)) {
-        halaqohMap.set(santri.halaqoh, [])
+      if (!kelasMap.has(santri.kelas)) {
+        kelasMap.set(santri.kelas, [])
       }
-      halaqohMap.get(santri.halaqoh)!.push(santri)
+      kelasMap.get(santri.kelas)!.push(santri)
     })
 
-    return Array.from(halaqohMap.entries())
-      .map(([halaqoh, santriList]) => {
+    return Array.from(kelasMap.entries())
+      .map(([kelas, santriList]) => {
         const totalSantri = santriList.length
-        const totalSetoran = santriList.reduce((sum, santri) => sum + santri.totalSetoranBulan, 0)
-        const totalHafalan = santriList.reduce((sum, santri) => sum + santri.totalHafalanBulan, 0)
+        const totalHafalan = santriList.reduce((sum, santri) => sum + santri.totalHafalanJuz, 0)
         const averageQuality = santriList.reduce((sum, santri) => sum + santri.averageQuality, 0) / totalSantri
-        const activeSantri = santriList.filter((santri) => santri.totalSetoranBulan > 0).length
+        const activeSantri = santriList.filter((santri) => santri.totalHafalanJuz > 0).length
 
         return {
-          halaqoh,
+          kelas,
           totalSantri,
-          totalSetoran,
           totalHafalan,
           averageQuality,
           activeSantri,
         }
       })
-      .sort((a, b) => a.halaqoh.localeCompare(b.halaqoh))
+      .sort((a, b) => a.kelas.localeCompare(b.kelas))
   }
 
   const handleSave = async () => {
@@ -232,9 +225,9 @@ export default function MemorizationRecapPage() {
       const recapData = {
         month: selectedMonth,
         year: selectedYear,
-        halaqoh: selectedHalaqoh,
+        kelas: selectedKelas,
         santriRecap: getSantriRecap(),
-        halaqohSummary: getHalaqohSummary(),
+        kelasSummary: getKelasSummary(),
         generatedAt: new Date().toISOString(),
         generatedBy: user?.username,
       }
@@ -283,7 +276,7 @@ export default function MemorizationRecapPage() {
             <div class="header">
               <h1>REKAP HAFALAN SANTRI</h1>
               <h2>${months[selectedMonth].toUpperCase()} ${selectedYear}</h2>
-              ${selectedHalaqoh !== "all" ? `<h3>HALAQOH: ${selectedHalaqoh}</h3>` : ""}
+              ${selectedKelas !== "all" ? `<h3>KELAS: ${selectedKelas}</h3>` : ""}
             </div>
             ${printContent}
             <div style="margin-top: 30px; text-align: right; font-size: 12px;">
@@ -300,7 +293,7 @@ export default function MemorizationRecapPage() {
 
   const exportToWord = () => {
     const santriRecap = getSantriRecap()
-    const halaqohSummary = getHalaqohSummary()
+    const kelasSummary = getKelasSummary()
 
     let wordContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
@@ -319,29 +312,27 @@ export default function MemorizationRecapPage() {
           <div class="header">
             <h1>REKAP HAFALAN SANTRI</h1>
             <h2>${months[selectedMonth].toUpperCase()} ${selectedYear}</h2>
-            ${selectedHalaqoh !== "all" ? `<h3>HALAQOH: ${selectedHalaqoh}</h3>` : ""}
+            ${selectedKelas !== "all" ? `<h3>KELAS: ${selectedKelas}</h3>` : ""}
           </div>
           
-          <h3>RINGKASAN PER HALAQOH</h3>
+          <h3>RINGKASAN PER KELAS</h3>
           <table>
             <tr>
-              <th>Halaqoh</th>
+              <th>Kelas</th>
               <th>Total Santri</th>
               <th>Santri Aktif</th>
-              <th>Total Setoran</th>
-              <th>Total Hafalan</th>
+              <th>Total Hafalan (Juz)</th>
               <th>Rata-rata Kualitas</th>
             </tr>
     `
 
-    halaqohSummary.forEach((summary) => {
+    kelasSummary.forEach((summary) => {
       wordContent += `
         <tr>
-          <td>${summary.halaqoh}</td>
+          <td>${summary.kelas}</td>
           <td>${summary.totalSantri}</td>
           <td>${summary.activeSantri}</td>
-          <td>${summary.totalSetoran}</td>
-          <td>${summary.totalHafalan}</td>
+          <td>${summary.totalHafalan.toFixed(1)}</td>
           <td>${summary.averageQuality.toFixed(1)}/3.0</td>
         </tr>
       `
@@ -355,8 +346,8 @@ export default function MemorizationRecapPage() {
             <tr>
               <th>No</th>
               <th>Nama Santri</th>
-              <th>Total Setoran Selama 1 Bulan</th>
-              <th>Total Hafalan</th>
+              <th>Kelas</th>
+              <th>Total Hafalan (Juz)</th>
               <th>Kualitas Hafalan</th>
               <th>Catatan</th>
             </tr>
@@ -367,8 +358,8 @@ export default function MemorizationRecapPage() {
         <tr>
           <td>${index + 1}</td>
           <td>${santri.santriName}</td>
-          <td>${santri.totalSetoranBulan}</td>
-          <td>${santri.totalHafalanBulan} ayat</td>
+          <td>${santri.kelas}</td>
+          <td>${santri.totalHafalanJuz} Juz</td>
           <td>${santri.averageQuality.toFixed(1)}/3.0</td>
           <td>${santri.notes || "-"}</td>
         </tr>
@@ -449,7 +440,7 @@ export default function MemorizationRecapPage() {
   ]
 
   const santriRecap = getSantriRecap()
-  const halaqohSummary = getHalaqohSummary()
+  const kelasSummary = getKelasSummary()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -470,7 +461,7 @@ export default function MemorizationRecapPage() {
                   <BookOpen className="h-8 w-8" />
                   Rekap Hafalan Bulanan
                 </h1>
-                <p className="text-blue-100">Laporan komprehensif hafalan santri per halaqoh</p>
+                <p className="text-blue-100">Laporan komprehensif hafalan santri per kelas dalam Juz</p>
               </div>
             </div>
           </FadeIn>
@@ -484,7 +475,7 @@ export default function MemorizationRecapPage() {
                   Filter Rekap
                 </CardTitle>
                 <CardDescription className="text-indigo-100">
-                  Pilih periode dan halaqoh untuk rekap hafalan
+                  Pilih periode dan kelas untuk rekap hafalan
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -540,16 +531,16 @@ export default function MemorizationRecapPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Halaqoh</label>
-                    <Select value={selectedHalaqoh} onValueChange={setSelectedHalaqoh}>
+                    <label className="text-sm font-semibold text-gray-700">Kelas</label>
+                    <Select value={selectedKelas} onValueChange={setSelectedKelas}>
                       <SelectTrigger className="w-48 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Halaqoh</SelectItem>
-                        {getAvailableHalaqoh().map((halaqoh) => (
-                          <SelectItem key={halaqoh} value={halaqoh}>
-                            {halaqoh}
+                        <SelectItem value="all">Semua Kelas</SelectItem>
+                        {getAvailableKelas().map((kelas) => (
+                          <SelectItem key={kelas} value={kelas}>
+                            {kelas}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -588,17 +579,22 @@ export default function MemorizationRecapPage() {
                 gradient: "from-blue-500 to-indigo-600",
               },
               {
-                title: "Total Setoran",
-                value: santriRecap.reduce((sum, santri) => sum + santri.totalSetoranBulan, 0),
-                subtitle: "Setoran bulan ini",
-                icon: Calendar,
+                title: "Total Hafalan",
+                value: santriRecap.reduce((sum, santri) => sum + santri.totalHafalanJuz, 0).toFixed(1),
+                subtitle: "Juz dihafal",
+                icon: BookOpen,
                 gradient: "from-green-500 to-emerald-600",
               },
               {
-                title: "Total Hafalan",
-                value: santriRecap.reduce((sum, santri) => sum + santri.totalHafalanBulan, 0),
-                subtitle: "Ayat dihafal",
-                icon: BookOpen,
+                title: "Rata-rata Hafalan",
+                value:
+                  santriRecap.length > 0
+                    ? (
+                        santriRecap.reduce((sum, santri) => sum + santri.totalHafalanJuz, 0) / santriRecap.length
+                      ).toFixed(1)
+                    : "0.0",
+                subtitle: "Juz per santri",
+                icon: Calendar,
                 gradient: "from-purple-500 to-pink-600",
               },
               {
@@ -652,13 +648,9 @@ export default function MemorizationRecapPage() {
                 <CardTitle className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5" />
                   REKAP HAFALAN {months[selectedMonth].toUpperCase()} {selectedYear}
-                  {selectedHalaqoh !== "all" && (
-                    <Badge className="bg-white/20 text-white ml-2">{selectedHalaqoh}</Badge>
-                  )}
+                  {selectedKelas !== "all" && <Badge className="bg-white/20 text-white ml-2">{selectedKelas}</Badge>}
                 </CardTitle>
-                <CardDescription className="text-blue-100">
-                  Detail hafalan per santri dengan format yang disederhanakan
-                </CardDescription>
+                <CardDescription className="text-blue-100">Detail hafalan per santri dalam Juz</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div ref={tableRef} className="overflow-x-auto">
@@ -666,7 +658,7 @@ export default function MemorizationRecapPage() {
                     <div className="text-center py-12">
                       <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                       <p className="text-gray-500 text-lg">Tidak ada data hafalan untuk periode ini</p>
-                      <p className="text-gray-400">Silakan pilih periode atau halaqoh yang berbeda</p>
+                      <p className="text-gray-400">Silakan pilih periode atau kelas yang berbeda</p>
                     </div>
                   ) : (
                     <table className="w-full border-collapse bg-white">
@@ -674,10 +666,10 @@ export default function MemorizationRecapPage() {
                         <tr className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                           <th className="border border-gray-300 px-4 py-4 text-center font-bold">No</th>
                           <th className="border border-gray-300 px-6 py-4 text-left font-bold">Nama Santri</th>
+                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">Kelas</th>
                           <th className="border border-gray-300 px-4 py-4 text-center font-bold">
-                            Total Setoran Selama 1 Bulan
+                            Total Hafalan (Juz)
                           </th>
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">Total Hafalan</th>
                           <th className="border border-gray-300 px-4 py-4 text-center font-bold">Kualitas Hafalan</th>
                           <th className="border border-gray-300 px-6 py-4 text-left font-bold">Catatan</th>
                         </tr>
@@ -695,11 +687,11 @@ export default function MemorizationRecapPage() {
                             <td className="border border-gray-300 px-6 py-4 font-semibold text-gray-900">
                               {santri.santriName}
                             </td>
-                            <td className="border border-gray-300 px-4 py-4 text-center font-bold text-blue-600">
-                              {santri.totalSetoranBulan}
+                            <td className="border border-gray-300 px-4 py-4 text-center font-medium text-blue-600">
+                              {santri.kelas}
                             </td>
                             <td className="border border-gray-300 px-4 py-4 text-center font-bold text-green-600">
-                              {santri.totalHafalanBulan} ayat
+                              {santri.totalHafalanJuz} Juz
                             </td>
                             <td className="border border-gray-300 px-4 py-4 text-center">
                               <span

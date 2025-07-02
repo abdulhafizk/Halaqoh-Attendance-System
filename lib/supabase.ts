@@ -10,7 +10,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export interface Profile {
   id: string
   username: string
+  full_name?: string
   role: "admin" | "masul_tahfidz" | "tim_tahfidz"
+  last_login?: string
+  login_count?: number
+  is_active?: boolean
   created_at: string
   updated_at: string
 }
@@ -65,4 +69,15 @@ export interface Memorization {
   created_at: string
   updated_at: string
   santri?: Santri
+}
+
+export interface UserLoginStats {
+  id: string
+  username: string
+  full_name: string
+  role: string
+  last_login: string | null
+  login_count: number
+  is_active: boolean
+  created_at: string
 }

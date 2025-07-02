@@ -244,12 +244,22 @@ export default function TargetHafalanPage() {
   const getColorCategory = (hafalan: number, target?: TargetHafalan): string => {
     if (!target) return "gray"
 
+    // Pink: Hafal semua (30 Juz atau lebih)
     if (hafalan >= target.pink_threshold) return "pink"
-    if (hafalan >= target.biru_min && hafalan <= target.biru_max) return "blue"
+
+    // Biru: Melampaui target (di atas hijau_max sampai biru_max)
+    if (hafalan > target.hijau_max && hafalan <= target.biru_max) return "blue"
+
+    // Hijau: Mencapai target (hijau_min sampai hijau_max)
     if (hafalan >= target.hijau_min && hafalan <= target.hijau_max) return "green"
+
+    // Kuning: Mendekati target (kuning_min sampai kuning_max)
     if (hafalan >= target.kuning_min && hafalan <= target.kuning_max) return "yellow"
+
+    // Merah: Perlu peningkatan (merah_min sampai merah_max)
     if (hafalan >= target.merah_min && hafalan <= target.merah_max) return "red"
 
+    // Default: jika tidak masuk kategori manapun
     return "gray"
   }
 
@@ -477,11 +487,11 @@ export default function TargetHafalanPage() {
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {[
-                    { color: "red", label: "🔴 Merah", desc: "Perlu Peningkatan", example: "0-4 Juz" },
-                    { color: "yellow", label: "🟡 Kuning", desc: "Mendekati Target", example: "4.1-7 Juz" },
-                    { color: "green", label: "🟢 Hijau", desc: "Mencapai Target", example: "7.1-11.4 Juz" },
-                    { color: "blue", label: "🔵 Biru", desc: "Melampaui Target", example: "11.5-20 Juz" },
-                    { color: "pink", label: "🩷 Pink", desc: "Hafal Semua", example: "30 Juz" },
+                    { color: "red", label: "🔴 Merah", desc: "Perlu Peningkatan", example: "Sesuai rentang merah" },
+                    { color: "yellow", label: "🟡 Kuning", desc: "Mendekati Target", example: "Sesuai rentang kuning" },
+                    { color: "green", label: "🟢 Hijau", desc: "Mencapai Target", example: "Sesuai rentang hijau" },
+                    { color: "blue", label: "🔵 Biru", desc: "Melampaui Target", example: "Di atas target hijau" },
+                    { color: "pink", label: "🩷 Pink", desc: "Hafal Semua", example: "30 Juz lengkap" },
                   ].map((item, index) => (
                     <motion.div
                       key={item.color}
@@ -574,7 +584,8 @@ export default function TargetHafalanPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Pengaturan Kategori Warna</h3>
                     <p className="text-sm text-gray-600">
-                      Tentukan rentang hafalan untuk setiap kategori warna progress santri
+                      Santri akan dikategorikan berdasarkan hafalan mereka: Merah (0-max), Kuning (min-max), Hijau
+                      (min-max untuk target), Biru (di atas hijau), Pink (hafal semua)
                     </p>
 
                     {/* Quick preset buttons */}

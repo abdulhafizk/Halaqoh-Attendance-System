@@ -197,21 +197,36 @@ export default function SantriPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data Santri ini?")) {
-      try {
-        const { error } = await supabase.from("santri").delete().eq("id", id)
+    // ask for confirmation
+    if (
+      !confirm("Apakah Anda yakin ingin menghapus data Santri ini? Semua data hafalan yang terkait juga akan dihapus.")
+    ) {
+      return
+    }
 
-        if (error) {
-          console.error("Error deleting santri:", error)
-          alert("Gagal menghapus data santri: " + error.message)
-          return
-        }
+    try {
+      // 1) delete all memorization rows first
+      const { error: memError } = await supabase.from("memorization").delete().eq("santri_id", id)
 
-        alert("Data Santri berhasil dihapus!")
-      } catch (error) {
-        console.error("Error deleting santri:", error)
-        alert("Terjadi kesalahan")
+      if (memError) {
+        console.error("Error deleting memorization:", memError)
+        alert("Gagal menghapus data hafalan: " + memError.message)
+        return
       }
+
+      // 2) delete the santri record
+      const { error: santriError } = await supabase.from("santri").delete().eq("id", id)
+
+      if (santriError) {
+        console.error("Error deleting santri:", santriError)
+        alert("Gagal menghapus data santri: " + santriError.message)
+        return
+      }
+
+      alert("Data Santri dan hafalan terkait berhasil dihapus!")
+    } catch (err) {
+      console.error("Unexpected error deleting santri:", err)
+      alert("Terjadi kesalahan")
     }
   }
 

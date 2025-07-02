@@ -158,21 +158,33 @@ export default function UstadzPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data Ustadz ini?")) {
-      try {
-        const { error } = await supabase.from("ustadz").delete().eq("id", id)
+    if (!confirm("Menghapus Ustadz ini juga akan menghapus seluruh data kehadiran terkait. Lanjutkan?")) {
+      return
+    }
 
-        if (error) {
-          console.error("Error deleting ustadz:", error)
-          alert("Gagal menghapus data ustadz: " + error.message)
-          return
-        }
+    try {
+      // 1. delete all attendance rows that reference this ustadz
+      const { error: attendanceError } = await supabase.from("attendance").delete().eq("ustadz_id", id)
 
-        alert("Data Ustadz berhasil dihapus!")
-      } catch (error) {
-        console.error("Error deleting ustadz:", error)
-        alert("Terjadi kesalahan")
+      if (attendanceError) {
+        console.error("Error deleting attendance:", attendanceError)
+        alert("Gagal menghapus data kehadiran terkait: " + attendanceError.message)
+        return
       }
+
+      // 2. delete the ustadz record itself
+      const { error: ustadzError } = await supabase.from("ustadz").delete().eq("id", id)
+
+      if (ustadzError) {
+        console.error("Error deleting ustadz:", ustadzError)
+        alert("Gagal menghapus data ustadz: " + ustadzError.message)
+        return
+      }
+
+      alert("Data Ustadz dan kehadiran terkait berhasil dihapus!")
+    } catch (error) {
+      console.error("Unexpected error:", error)
+      alert("Terjadi kesalahan saat menghapus data")
     }
   }
 

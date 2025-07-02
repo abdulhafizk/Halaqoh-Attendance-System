@@ -85,7 +85,7 @@ export default function MemorizationRecapPage() {
             *,
             santri:santri_id (
               name,
-              kelas
+              halaqoh
             )
           `)
           .order("created_at", { ascending: false })
@@ -102,7 +102,7 @@ export default function MemorizationRecapPage() {
             id: record.id,
             santriId: record.santri_id,
             santriName: record.santri?.name || "",
-            kelas: record.santri?.kelas || "",
+            kelas: record.santri?.halaqoh || "",
             date: record.date,
             totalHafalan: record.ayah_to || 0, // ayah_to now stores total Juz
             quality: record.quality as "Baik" | "Cukup" | "Kurang",

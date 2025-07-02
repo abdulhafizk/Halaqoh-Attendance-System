@@ -21,7 +21,7 @@ export default function SantriPage() {
   const [editingId, setEditingId] = useState("")
   const [formData, setFormData] = useState({
     name: "",
-    kelas: "",
+    halaqoh: "",
     age: "",
     parentName: "",
     phone: "",
@@ -131,7 +131,7 @@ export default function SantriPage() {
   }
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.kelas) {
+    if (!formData.name || !formData.halaqoh) {
       alert("Nama dan Kelas wajib diisi!")
       return
     }
@@ -144,7 +144,7 @@ export default function SantriPage() {
           .from("santri")
           .update({
             name: formData.name,
-            kelas: formData.kelas,
+            halaqoh: formData.halaqoh,
             age: formData.age,
             parent_name: formData.parentName,
             phone: formData.phone,
@@ -158,7 +158,7 @@ export default function SantriPage() {
         const { error } = await supabase.from("santri").insert([
           {
             name: formData.name,
-            kelas: formData.kelas,
+            halaqoh: formData.halaqoh,
             age: formData.age,
             parent_name: formData.parentName,
             phone: formData.phone,
@@ -170,7 +170,7 @@ export default function SantriPage() {
       }
 
       // Reset form
-      setFormData({ name: "", kelas: "", age: "", parentName: "", phone: "", address: "" })
+      setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
       setIsEditing(false)
       setEditingId("")
 
@@ -186,7 +186,7 @@ export default function SantriPage() {
   const handleEdit = (santri: Santri) => {
     setFormData({
       name: santri.name,
-      kelas: santri.kelas,
+      halaqoh: santri.halaqoh,
       age: santri.age || "",
       parentName: santri.parent_name || "",
       phone: santri.phone || "",
@@ -231,7 +231,7 @@ export default function SantriPage() {
   }
 
   const handleCancel = () => {
-    setFormData({ name: "", kelas: "", age: "", parentName: "", phone: "", address: "" })
+    setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
     setIsEditing(false)
     setEditingId("")
   }
@@ -276,7 +276,7 @@ export default function SantriPage() {
 
         importedData.push({
           name: rowData.nama,
-          kelas: rowData.kelas,
+          halaqoh: rowData.kelas,
           age: rowData.usia || rowData.age || "",
           parent_name: rowData.nama_orangtua || rowData.parent_name || "",
           phone: rowData.telepon || rowData.phone || "",
@@ -317,13 +317,14 @@ export default function SantriPage() {
     document.body.removeChild(link)
   }
 
+  // Get available classes from ustadz data
   const getAvailableKelas = () => {
-    const kelasList = ustadzList.map((ustadz) => ustadz.kelas)
-    return [...new Set(kelasList)]
+    const kelasList = ustadzList.map((ustadz) => ustadz.halaqoh)
+    return [...new Set(kelasList)].filter(Boolean) // Remove duplicates and empty values
   }
 
   const getSantriByKelas = (kelas: string) => {
-    return santriList.filter((santri) => santri.kelas === kelas)
+    return santriList.filter((santri) => santri.halaqoh === kelas)
   }
 
   return (
@@ -365,13 +366,14 @@ export default function SantriPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="kelas">Kelas *</Label>
+                  <Label htmlFor="halaqoh">Kelas *</Label>
                   <Select
-                    value={formData.kelas}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, kelas: value }))}
+                    value={formData.halaqoh}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, halaqoh: value }))}
+                    disabled={getAvailableKelas().length === 0}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih Kelas" />
+                      <SelectValue placeholder={getAvailableKelas().length ? "Pilih Kelas" : "Belum ada kelas"} />
                     </SelectTrigger>
                     <SelectContent>
                       {getAvailableKelas().map((kelas) => (
@@ -423,7 +425,7 @@ export default function SantriPage() {
                   <Button
                     onClick={handleSubmit}
                     className="flex-1 bg-teal-600 hover:bg-teal-700"
-                    disabled={!formData.name || !formData.kelas || loading}
+                    disabled={!formData.name || !formData.halaqoh || loading}
                   >
                     {loading ? "Menyimpan..." : isEditing ? "Perbarui" : "Tambah"} Santri
                   </Button>
@@ -495,7 +497,7 @@ export default function SantriPage() {
                           <div className="flex-1">
                             <h3 className="font-medium text-lg">{santri.name}</h3>
                             <Badge variant="secondary" className="mb-2">
-                              {santri.kelas}
+                              {santri.halaqoh}
                             </Badge>
                             {santri.age && (
                               <p className="text-sm text-gray-600">

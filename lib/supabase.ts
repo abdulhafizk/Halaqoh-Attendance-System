@@ -22,7 +22,7 @@ export interface Profile {
 export interface Ustadz {
   id: string
   name: string
-  kelas: string
+  halaqoh: string
   phone?: string
   address?: string
   created_at: string
@@ -32,7 +32,7 @@ export interface Ustadz {
 export interface Santri {
   id: string
   name: string
-  kelas: string
+  halaqoh: string
   age?: string
   parent_name?: string
   phone?: string
@@ -69,6 +69,23 @@ export interface Memorization {
   created_at: string
   updated_at: string
   santri?: Santri
+}
+
+export interface TargetHafalan {
+  id: string
+  kelas: string
+  target_juz: number
+  merah_min: number
+  merah_max: number
+  kuning_min: number
+  kuning_max: number
+  hijau_min: number
+  hijau_max: number
+  biru_min: number
+  biru_max: number
+  pink_threshold: number
+  created_at: string
+  updated_at: string
 }
 
 export interface UserLoginStats {

@@ -12,11 +12,12 @@ import { BookOpen, User, ArrowLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Navbar } from "@/components/navbar"
-import { supabase, type Santri, type Memorization } from "@/lib/supabase-client"
+import { supabase, type Santri, type Memorization, type Ustadz } from "@/lib/supabase-client"
 
 export default function MemorizationPage() {
   const { user, hasPermission, isLoading } = useAuth()
   const [santriList, setSantriList] = useState<Santri[]>([])
+  const [ustadzList, setUstadzList] = useState<Ustadz[]>([])
   const [memorizationRecords, setMemorizationRecords] = useState<Memorization[]>([])
   const [selectedKelas, setSelectedKelas] = useState("")
   const [selectedSantri, setSelectedSantri] = useState("")
@@ -40,18 +41,20 @@ export default function MemorizationPage() {
     const loadData = async () => {
       try {
         const { data: santriData } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
+        const { data: ustadzData } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
         const { data: memorizationData } = await supabase
           .from("memorization")
           .select(`
             *,
             santri:santri_id (
               name,
-              kelas
+              halaqoh
             )
           `)
           .order("created_at", { ascending: false })
 
         setSantriList(santriData || [])
+        setUstadzList(ustadzData || [])
         setMemorizationRecords(memorizationData || [])
       } catch (error) {
         console.error("Error loading data:", error)
@@ -97,9 +100,26 @@ export default function MemorizationPage() {
       )
       .subscribe()
 
+    const ustadzChannel = supabase
+      .channel("ustadz_realtime_memorization")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "ustadz",
+        },
+        (payload) => {
+          console.log("Real-time ustadz update for memorization:", payload.eventType)
+          loadUstadzData()
+        },
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(memorizationChannel)
       supabase.removeChannel(santriChannel)
+      supabase.removeChannel(ustadzChannel)
     }
   }, [])
 
@@ -111,7 +131,7 @@ export default function MemorizationPage() {
           *,
           santri:santri_id (
             name,
-            kelas
+            halaqoh
           )
         `)
         .order("created_at", { ascending: false })
@@ -131,13 +151,23 @@ export default function MemorizationPage() {
     }
   }
 
+  const loadUstadzData = async () => {
+    try {
+      const { data } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
+      setUstadzList(data || [])
+    } catch (error) {
+      console.error("Error loading ustadz:", error)
+    }
+  }
+
+  // Get available classes from ustadz data
   const getAvailableKelas = () => {
-    const kelasList = santriList.map((santri) => santri.kelas)
-    return [...new Set(kelasList)].filter(Boolean)
+    const kelasList = ustadzList.map((ustadz) => ustadz.halaqoh)
+    return [...new Set(kelasList)].filter(Boolean) // Remove duplicates and empty values
   }
 
   const getSantriByKelas = (kelas: string) => {
-    return santriList.filter((santri) => santri.kelas === kelas)
+    return santriList.filter((santri) => santri.halaqoh === kelas)
   }
 
   const handleSubmitMemorization = async () => {
@@ -149,13 +179,22 @@ export default function MemorizationPage() {
     setLoading(true)
 
     try {
+      // --- convert Juz (can be decimal) to an integer value (tenths) ---
+      const juz = Number.parseFloat(formData.totalHafalan)
+      if (Number.isNaN(juz)) {
+        alert("Total hafalan harus berupa angka.")
+        setLoading(false)
+        return
+      }
+      const storedValue = Math.round(juz * 10) // e.g. 7.5 -> 75
+
       const { error } = await supabase.from("memorization").insert([
         {
           santri_id: selectedSantri,
           date: new Date().toISOString().split("T")[0], // Auto set to today
           surah: "Total Hafalan", // Default value
           ayah_from: 0, // Default value
-          ayah_to: Number.parseFloat(formData.totalHafalan), // Store total hafalan in ayah_to field
+          ayah_to: storedValue,
           quality: formData.quality,
           notes: formData.notes,
         },
@@ -256,9 +295,10 @@ export default function MemorizationPage() {
                       setSelectedKelas(value)
                       setSelectedSantri("") // Reset santri selection when kelas changes
                     }}
+                    disabled={getAvailableKelas().length === 0}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih Kelas" />
+                      <SelectValue placeholder={getAvailableKelas().length ? "Pilih Kelas" : "Belum ada kelas"} />
                     </SelectTrigger>
                     <SelectContent>
                       {getAvailableKelas().map((kelas) => (
@@ -268,13 +308,30 @@ export default function MemorizationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {getAvailableKelas().length === 0 && (
+                    <p className="text-sm text-amber-600">
+                      Silakan tambahkan data Ustadz terlebih dahulu untuk membuat kelas
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="santri">Pilih Santri *</Label>
-                  <Select value={selectedSantri} onValueChange={setSelectedSantri} disabled={!selectedKelas}>
+                  <Select
+                    value={selectedSantri}
+                    onValueChange={setSelectedSantri}
+                    disabled={!selectedKelas || getSantriByKelas(selectedKelas).length === 0}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedKelas ? "Pilih Santri" : "Pilih Kelas terlebih dahulu"} />
+                      <SelectValue
+                        placeholder={
+                          !selectedKelas
+                            ? "Pilih Kelas terlebih dahulu"
+                            : getSantriByKelas(selectedKelas).length === 0
+                              ? "Belum ada santri di kelas ini"
+                              : "Pilih Santri"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {getSantriByKelas(selectedKelas).map((santri) => (
@@ -284,6 +341,11 @@ export default function MemorizationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedKelas && getSantriByKelas(selectedKelas).length === 0 && (
+                    <p className="text-sm text-amber-600">
+                      Belum ada santri di kelas {selectedKelas}. Silakan tambahkan santri terlebih dahulu.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -365,10 +427,10 @@ export default function MemorizationPage() {
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm">
-                            <span className="font-medium">Total Hafalan:</span> {record.ayah_to} Juz
+                            <span className="font-medium">Total Hafalan:</span> {(record.ayah_to / 10).toFixed(1)} Juz
                           </p>
                           <p className="text-sm">
-                            <span className="font-medium">Kelas:</span> {record.santri?.kelas}
+                            <span className="font-medium">Kelas:</span> {record.santri?.halaqoh}
                           </p>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">Kualitas:</span>

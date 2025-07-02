@@ -19,7 +19,7 @@ export default function UstadzPage() {
   const [editingId, setEditingId] = useState("")
   const [formData, setFormData] = useState({
     name: "",
-    kelas: "",
+    halaqoh: "",
     phone: "",
     address: "",
   })
@@ -98,7 +98,7 @@ export default function UstadzPage() {
   }
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.kelas) {
+    if (!formData.name || !formData.halaqoh) {
       alert("Nama dan Kelas wajib diisi!")
       return
     }
@@ -111,7 +111,7 @@ export default function UstadzPage() {
           .from("ustadz")
           .update({
             name: formData.name,
-            kelas: formData.kelas,
+            halaqoh: formData.halaqoh,
             phone: formData.phone,
             address: formData.address,
             updated_at: new Date().toISOString(),
@@ -123,7 +123,7 @@ export default function UstadzPage() {
         const { error } = await supabase.from("ustadz").insert([
           {
             name: formData.name,
-            kelas: formData.kelas,
+            halaqoh: formData.halaqoh,
             phone: formData.phone,
             address: formData.address,
           },
@@ -133,7 +133,7 @@ export default function UstadzPage() {
       }
 
       // Reset form
-      setFormData({ name: "", kelas: "", phone: "", address: "" })
+      setFormData({ name: "", halaqoh: "", phone: "", address: "" })
       setIsEditing(false)
       setEditingId("")
 
@@ -149,7 +149,7 @@ export default function UstadzPage() {
   const handleEdit = (ustadz: Ustadz) => {
     setFormData({
       name: ustadz.name,
-      kelas: ustadz.kelas,
+      halaqoh: ustadz.halaqoh,
       phone: ustadz.phone || "",
       address: ustadz.address || "",
     })
@@ -189,7 +189,7 @@ export default function UstadzPage() {
   }
 
   const handleCancel = () => {
-    setFormData({ name: "", kelas: "", phone: "", address: "" })
+    setFormData({ name: "", halaqoh: "", phone: "", address: "" })
     setIsEditing(false)
     setEditingId("")
   }
@@ -234,7 +234,7 @@ export default function UstadzPage() {
 
         importedData.push({
           name: rowData.nama,
-          kelas: rowData.kelas,
+          halaqoh: rowData.kelas,
           phone: rowData.telepon || rowData.phone || "",
           address: rowData.alamat || rowData.address || "",
         })
@@ -273,13 +273,13 @@ export default function UstadzPage() {
     document.body.removeChild(link)
   }
 
-  const getUstadzByKelas = (kelas: string) => {
-    return ustadzList.filter((ustadz) => ustadz.kelas === kelas)
+  const getUstadzByHalaqoh = (halaqoh: string) => {
+    return ustadzList.filter((ustadz) => ustadz.halaqoh === halaqoh)
   }
 
-  const getAvailableKelas = () => {
-    const kelasList = ustadzList.map((ustadz) => ustadz.kelas)
-    return [...new Set(kelasList)]
+  const getAvailableHalaqoh = () => {
+    const halaqohList = ustadzList.map((ustadz) => ustadz.halaqoh)
+    return [...new Set(halaqohList)]
   }
 
   return (
@@ -321,11 +321,11 @@ export default function UstadzPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="kelas">Kelas *</Label>
+                  <Label htmlFor="halaqoh">Kelas *</Label>
                   <Input
                     placeholder="Contoh: Kelas A"
-                    value={formData.kelas}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, kelas: e.target.value }))}
+                    value={formData.halaqoh}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, halaqoh: e.target.value }))}
                   />
                 </div>
 
@@ -351,7 +351,7 @@ export default function UstadzPage() {
                   <Button
                     onClick={handleSubmit}
                     className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    disabled={!formData.name || !formData.kelas || loading}
+                    disabled={!formData.name || !formData.halaqoh || loading}
                   >
                     {loading ? "Menyimpan..." : isEditing ? "Perbarui" : "Tambah"} Ustadz
                   </Button>
@@ -423,7 +423,7 @@ export default function UstadzPage() {
                           <div className="flex-1">
                             <h3 className="font-medium text-lg">{ustadz.name}</h3>
                             <Badge variant="secondary" className="mb-2">
-                              {ustadz.kelas}
+                              {ustadz.halaqoh}
                             </Badge>
                             {ustadz.phone && (
                               <p className="text-sm text-gray-600">
@@ -459,7 +459,7 @@ export default function UstadzPage() {
           </div>
 
           {/* Ustadz per Kelas */}
-          {getAvailableKelas().length > 0 && (
+          {getAvailableHalaqoh().length > 0 && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Ustadz per Kelas</CardTitle>
@@ -467,14 +467,14 @@ export default function UstadzPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getAvailableKelas().map((kelas) => (
-                    <div key={kelas} className="border rounded-lg p-4">
-                      <h3 className="font-medium text-lg mb-2">{kelas}</h3>
+                  {getAvailableHalaqoh().map((halaqoh) => (
+                    <div key={halaqoh} className="border rounded-lg p-4">
+                      <h3 className="font-medium text-lg mb-2">{halaqoh}</h3>
                       <Badge variant="outline" className="mb-3">
-                        {getUstadzByKelas(kelas).length} Ustadz
+                        {getUstadzByHalaqoh(halaqoh).length} Ustadz
                       </Badge>
                       <div className="space-y-1">
-                        {getUstadzByKelas(kelas).map((ustadz) => (
+                        {getUstadzByHalaqoh(halaqoh).map((ustadz) => (
                           <p key={ustadz.id} className="text-sm text-gray-600">
                             • {ustadz.name}
                           </p>

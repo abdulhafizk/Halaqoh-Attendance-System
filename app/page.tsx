@@ -4,7 +4,17 @@ import { useState, useEffect } from "react"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Users, BookOpen, Calendar, BarChart3, UserCheck, GraduationCap, ArrowRight, TrendingUp } from "lucide-react"
+import {
+  Users,
+  BookOpen,
+  Calendar,
+  BarChart3,
+  UserCheck,
+  GraduationCap,
+  ArrowRight,
+  TrendingUp,
+  Target,
+} from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Navbar } from "@/components/navbar"
@@ -141,6 +151,15 @@ export default function Dashboard() {
       color: "from-orange-500 to-orange-600",
       permission: "manage_memorization",
       stats: `${stats.thisWeekMemorization} minggu ini`,
+    },
+    {
+      title: "Target Hafalan",
+      description: "Kelola target dan kategori warna hafalan",
+      icon: Target,
+      href: "/target-hafalan",
+      color: "from-pink-500 to-rose-600",
+      permission: "manage_users",
+      stats: "Sistem target",
     },
     {
       title: "Rekap Hafalan",
@@ -363,7 +382,7 @@ export default function Dashboard() {
                 <CardDescription>Akses cepat ke fitur yang sering digunakan</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {hasPermission("view_attendance") && (
                     <Link href="/attendance">
                       <AnimatedButton className="w-full h-16 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl">
@@ -386,6 +405,20 @@ export default function Dashboard() {
                           <div className="text-left">
                             <p className="font-semibold">Input Hafalan</p>
                             <p className="text-xs text-orange-100">Progress santri</p>
+                          </div>
+                        </div>
+                      </AnimatedButton>
+                    </Link>
+                  )}
+
+                  {hasPermission("manage_users") && (
+                    <Link href="/target-hafalan">
+                      <AnimatedButton className="w-full h-16 bg-gradient-to-r from-pink-600 to-rose-700 hover:from-pink-700 hover:to-rose-800 text-white rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <Target className="h-5 w-5" />
+                          <div className="text-left">
+                            <p className="font-semibold">Target Hafalan</p>
+                            <p className="text-xs text-pink-100">Kelola target</p>
                           </div>
                         </div>
                       </AnimatedButton>

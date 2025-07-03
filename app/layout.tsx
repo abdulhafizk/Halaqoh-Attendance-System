@@ -1,20 +1,21 @@
-import type React from "react";
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "@/hooks/use-auth";
+import type React from "react"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { AuthProvider } from "@/hooks/use-auth"
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Sistem Pengelolaan Hafalan",
-  description: "Aplikasi untuk mengelola Hafalan Santri Hubbul Khoir",
-};
+  title: "Sistem Absensi Halaqoh",
+  description: "Aplikasi untuk mengelola absensi Ustadz dan hafalan santri",
+    generator: 'v0.dev'
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="id">
@@ -22,5 +23,5 @@ export default function RootLayout({
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
-  );
+  )
 }

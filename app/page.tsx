@@ -1,14 +1,9 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react"
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   BookOpen,
@@ -19,84 +14,73 @@ import {
   ArrowRight,
   TrendingUp,
   Target,
-} from "lucide-react";
-import Link from "next/link";
-import { useAuth } from "@/hooks/use-auth";
-import { Navbar } from "@/components/navbar";
-import { supabase } from "@/lib/supabase";
-import { AnimatedCard } from "@/components/animated-card";
-import { AnimatedButton } from "@/components/animated-button";
-import { FadeIn } from "@/components/fade-in";
-import { StaggerContainer, StaggerItem } from "@/components/stagger-container";
-import { motion } from "framer-motion";
+} from "lucide-react"
+import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
+import { Navbar } from "@/components/navbar"
+import { supabase } from "@/lib/supabase"
+import { AnimatedCard } from "@/components/animated-card"
+import { AnimatedButton } from "@/components/animated-button"
+import { FadeIn } from "@/components/fade-in"
+import { StaggerContainer, StaggerItem } from "@/components/stagger-container"
+import { motion } from "framer-motion"
 
 interface DashboardStats {
-  totalUstadz: number;
-  totalSantri: number;
-  todayAttendance: number;
-  thisWeekMemorization: number;
+  totalUstadz: number
+  totalSantri: number
+  todayAttendance: number
+  thisWeekMemorization: number
 }
 
 export default function Dashboard() {
-  const { user, profile, hasPermission, isLoading } = useAuth();
+  const { user, profile, hasPermission, isLoading } = useAuth()
   const [stats, setStats] = useState<DashboardStats>({
     totalUstadz: 0,
     totalSantri: 0,
     todayAttendance: 0,
     thisWeekMemorization: 0,
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
+  })
+  const [loadingStats, setLoadingStats] = useState(true)
 
   useEffect(() => {
     if (user) {
-      loadDashboardStats();
+      loadDashboardStats()
     }
-  }, [user]);
+  }, [user])
 
   const loadDashboardStats = async () => {
     try {
-      setLoadingStats(true);
+      setLoadingStats(true)
 
       // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split("T")[0]
 
       // Get start of current week (Monday)
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-      const monday = new Date(now.setDate(diff));
-      const weekStart = monday.toISOString().split("T")[0];
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+      const monday = new Date(now.setDate(diff))
+      const weekStart = monday.toISOString().split("T")[0]
 
-      const [
-        ustadzResponse,
-        santriResponse,
-        attendanceResponse,
-        memorizationResponse,
-      ] = await Promise.all([
+      const [ustadzResponse, santriResponse, attendanceResponse, memorizationResponse] = await Promise.all([
         supabase.from("ustadz").select("id", { count: "exact" }),
         supabase.from("santri").select("id", { count: "exact" }),
-        supabase
-          .from("attendance")
-          .select("id", { count: "exact" })
-          .eq("date", today),
-        supabase
-          .from("memorization")
-          .select("id", { count: "exact" })
-          .gte("date", weekStart),
-      ]);
+        supabase.from("attendance").select("id", { count: "exact" }).eq("date", today),
+        supabase.from("memorization").select("id", { count: "exact" }).gte("date", weekStart),
+      ])
 
       setStats({
         totalUstadz: ustadzResponse.count || 0,
         totalSantri: santriResponse.count || 0,
         todayAttendance: attendanceResponse.count || 0,
         thisWeekMemorization: memorizationResponse.count || 0,
-      });
+      })
     } catch (error) {
-      console.error("Error loading dashboard stats:", error);
+      console.error("Error loading dashboard stats:", error)
     } finally {
-      setLoadingStats(false);
+      setLoadingStats(false)
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -111,7 +95,7 @@ export default function Dashboard() {
           <p className="text-gray-600 font-medium">Memuat dashboard...</p>
         </motion.div>
       </div>
-    );
+    )
   }
 
   if (!user) {
@@ -121,18 +105,14 @@ export default function Dashboard() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserCheck className="h-8 w-8 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-red-600 mb-2">
-            Akses Ditolak
-          </h1>
-          <p className="text-gray-600 mb-4">
-            Silakan login untuk mengakses dashboard.
-          </p>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Akses Ditolak</h1>
+          <p className="text-gray-600 mb-4">Silakan login untuk mengakses dashboard.</p>
           <Link href="/login">
             <Button className="bg-red-600 hover:bg-red-700">Login</Button>
           </Link>
         </div>
       </div>
-    );
+    )
   }
 
   const menuItems = [
@@ -208,41 +188,35 @@ export default function Dashboard() {
       permission: "manage_users",
       stats: "Manajemen akses",
     },
-  ];
+  ]
 
-  const availableMenuItems = menuItems.filter((item) =>
-    hasPermission(item.permission)
-  );
+  const availableMenuItems = menuItems.filter((item) => hasPermission(item.permission))
 
   const getRoleDisplayName = (role: string) => {
     switch (role) {
       case "admin":
-        return "Administrator";
+        return "Administrator"
       case "masul_tahfidz":
-        return "Masul Tahfidz";
+        return "Masul Tahfidz"
       case "tim_tahfidz":
-        return "Tim Tahfidz";
-      case "pengampu":
-        return "Pengampu";
+        return "Tim Tahfidz"
       default:
-        return role;
+        return role
     }
-  };
+  }
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case "admin":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800"
       case "masul_tahfidz":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800"
       case "tim_tahfidz":
-        return "bg-green-100 text-green-800";
-      case "pengampu":
-        return "bg-purple-100 text-purple-800";
+        return "bg-green-100 text-green-800"
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800"
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-rose-50">
@@ -255,19 +229,11 @@ export default function Dashboard() {
               <div className="bg-gradient-to-r from-red-500 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold mb-2">
-                      Selamat datang, {profile?.username || user.email}!
-                    </h1>
-                    <p className="text-red-100 text-lg">
-                      Sistem Pengelolaan Tahfidz Hubbul Khoir
-                    </p>
+                    <h1 className="text-3xl font-bold mb-2">Selamat datang, {profile?.username || user.email}!</h1>
+                    <p className="text-red-100 text-lg">Sistem Kehadiran Kelas Tahfidz</p>
                   </div>
                   <div className="text-right">
-                    <Badge
-                      className={`${getRoleBadgeColor(
-                        profile?.role || ""
-                      )} text-sm px-3 py-1`}
-                    >
+                    <Badge className={`${getRoleBadgeColor(profile?.role || "")} text-sm px-3 py-1`}>
                       {getRoleDisplayName(profile?.role || "")}
                     </Badge>
                     <p className="text-red-100 text-sm mt-2">
@@ -291,9 +257,7 @@ export default function Dashboard() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Ustadz
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Total Ustadz</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {loadingStats ? (
                           <div className="w-8 h-6 bg-gray-200 rounded animate-pulse"></div>
@@ -313,9 +277,7 @@ export default function Dashboard() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Santri
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Total Santri</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {loadingStats ? (
                           <div className="w-8 h-6 bg-gray-200 rounded animate-pulse"></div>
@@ -335,9 +297,7 @@ export default function Dashboard() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Kehadiran Hari Ini
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Kehadiran Hari Ini</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {loadingStats ? (
                           <div className="w-8 h-6 bg-gray-200 rounded animate-pulse"></div>
@@ -357,9 +317,7 @@ export default function Dashboard() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Hafalan Minggu Ini
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Hafalan Minggu Ini</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {loadingStats ? (
                           <div className="w-8 h-6 bg-gray-200 rounded animate-pulse"></div>
@@ -380,9 +338,7 @@ export default function Dashboard() {
           {/* Menu Grid */}
           <FadeIn delay={0.3}>
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Menu Utama
-              </h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Menu Utama</h2>
               <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {availableMenuItems.map((item, index) => (
                   <StaggerItem key={item.title}>
@@ -400,9 +356,7 @@ export default function Dashboard() {
                           <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-red-600 transition-colors duration-300">
                             {item.title}
                           </h3>
-                          <p className="text-gray-600 text-sm mb-3 leading-relaxed">
-                            {item.description}
-                          </p>
+                          <p className="text-gray-600 text-sm mb-3 leading-relaxed">{item.description}</p>
                           <div className="flex items-center justify-between">
                             <Badge variant="secondary" className="text-xs">
                               {item.stats}
@@ -418,16 +372,14 @@ export default function Dashboard() {
           </FadeIn>
 
           {/* Quick Actions */}
-          {/* <FadeIn delay={0.4}>
+          <FadeIn delay={0.4}>
             <AnimatedCard className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
                   Aksi Cepat
                 </CardTitle>
-                <CardDescription>
-                  Akses cepat ke fitur yang sering digunakan
-                </CardDescription>
+                <CardDescription>Akses cepat ke fitur yang sering digunakan</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -452,9 +404,7 @@ export default function Dashboard() {
                           <BookOpen className="h-5 w-5" />
                           <div className="text-left">
                             <p className="font-semibold">Input Hafalan</p>
-                            <p className="text-xs text-orange-100">
-                              Progress santri
-                            </p>
+                            <p className="text-xs text-orange-100">Progress santri</p>
                           </div>
                         </div>
                       </AnimatedButton>
@@ -468,9 +418,7 @@ export default function Dashboard() {
                           <Target className="h-5 w-5" />
                           <div className="text-left">
                             <p className="font-semibold">Target Hafalan</p>
-                            <p className="text-xs text-pink-100">
-                              Kelola target
-                            </p>
+                            <p className="text-xs text-pink-100">Kelola target</p>
                           </div>
                         </div>
                       </AnimatedButton>
@@ -484,9 +432,7 @@ export default function Dashboard() {
                           <BarChart3 className="h-5 w-5" />
                           <div className="text-left">
                             <p className="font-semibold">Lihat Laporan</p>
-                            <p className="text-xs text-indigo-100">
-                              Analisis data
-                            </p>
+                            <p className="text-xs text-indigo-100">Analisis data</p>
                           </div>
                         </div>
                       </AnimatedButton>
@@ -495,9 +441,9 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </AnimatedCard>
-          </FadeIn> */}
+          </FadeIn>
         </div>
       </div>
     </div>
-  );
+  )
 }

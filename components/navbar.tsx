@@ -18,7 +18,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function Navbar() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, logout } = useAuth();
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const getRoleDisplayName = (role: string) => {
@@ -52,7 +53,7 @@ export function Navbar() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     setIsMobileMenuOpen(false);
   };
 
@@ -224,7 +225,7 @@ export function Navbar() {
                     onClick={handleSignOut}
                     className="w-full justify-start text-red-600 hover:text-red-600 hover:bg-red-50"
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
+                    <Logout className="mr-2 h-4 w-4" />
                     <span>Keluar</span>
                   </Button>
                 </>

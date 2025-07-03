@@ -259,7 +259,7 @@ export default function Dashboard() {
                       Selamat datang, {profile?.username || user.email}!
                     </h1>
                     <p className="text-red-100 text-lg">
-                      Sistem Kehadiran Kelas Tahfidz
+                      Sistem Pengelolaan Tahfidz Hubbul Khoir
                     </p>
                   </div>
                   <div className="text-right">
@@ -418,7 +418,7 @@ export default function Dashboard() {
           </FadeIn>
 
           {/* Quick Actions */}
-          <FadeIn delay={0.4}>
+          {/* <FadeIn delay={0.4}>
             <AnimatedCard className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -495,7 +495,7 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </AnimatedCard>
-          </FadeIn>
+          </FadeIn> */}
         </div>
       </div>
     </div>

@@ -54,7 +54,7 @@ const PERMISSIONS = {
     "manage_memorization",
     "view_reports",
   ],
-  pengampu: ["view_dashboard", ""],
+  pengampu: ["view_dashboard", "manage_memorization"],
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

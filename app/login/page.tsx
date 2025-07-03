@@ -1,14 +1,19 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   BookOpen,
   Users,
@@ -22,45 +27,45 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-} from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
-import { AnimatedCard } from "@/components/animated-card"
-import { AnimatedButton } from "@/components/animated-button"
-import { AnimatedInput } from "@/components/animated-input"
-import { FadeIn } from "@/components/fade-in"
-import { StaggerContainer } from "@/components/stagger-container"
+} from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
+import { AnimatedCard } from "@/components/animated-card";
+import { AnimatedButton } from "@/components/animated-button";
+import { AnimatedInput } from "@/components/animated-input";
+import { FadeIn } from "@/components/fade-in";
+import { StaggerContainer } from "@/components/stagger-container";
 
 interface LoginStats {
-  totalUsers: number
-  activeUsers: number
-  lastLoginTime: string | null
+  totalUsers: number;
+  activeUsers: number;
+  lastLoginTime: string | null;
 }
 
 export default function LoginPage() {
-  const { login, isLoading, error, user } = useAuth()
-  const router = useRouter()
+  const { login, isLoading, error, user } = useAuth();
+  const router = useRouter();
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  const [loginLoading, setLoginLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginStats, setLoginStats] = useState<LoginStats>({
     totalUsers: 0,
     activeUsers: 0,
     lastLoginTime: null,
-  })
-  const [loginSuccess, setLoginSuccess] = useState(false)
+  });
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   // Load saved email from localStorage
   useEffect(() => {
-    const savedEmail = localStorage.getItem("rememberedEmail")
+    const savedEmail = localStorage.getItem("rememberedEmail");
     if (savedEmail) {
-      setEmail(savedEmail)
-      setRememberMe(true)
+      setEmail(savedEmail);
+      setRememberMe(true);
     }
-  }, [])
+  }, []);
 
   // Load login statistics
   useEffect(() => {
@@ -70,17 +75,17 @@ export default function LoginPage() {
         const { count: totalUsers } = await supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
-          .eq("is_active", true)
+          .eq("is_active", true);
 
         // Get active users (logged in within last 24 hours)
-        const twentyFourHoursAgo = new Date()
-        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24)
+        const twentyFourHoursAgo = new Date();
+        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
         const { count: activeUsers } = await supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
           .eq("is_active", true)
-          .gte("last_login", twentyFourHoursAgo.toISOString())
+          .gte("last_login", twentyFourHoursAgo.toISOString());
 
         // Get most recent login
         const { data: recentLogin } = await supabase
@@ -90,80 +95,83 @@ export default function LoginPage() {
           .not("last_login", "is", null)
           .order("last_login", { ascending: false })
           .limit(1)
-          .single()
+          .single();
 
         setLoginStats({
           totalUsers: totalUsers || 0,
           activeUsers: activeUsers || 0,
           lastLoginTime: recentLogin?.last_login || null,
-        })
+        });
       } catch (error) {
-        console.error("Error loading login stats:", error)
+        console.error("Error loading login stats:", error);
       }
-    }
+    };
 
-    loadLoginStats()
-  }, [])
+    loadLoginStats();
+  }, []);
 
   // Redirect if already logged in
   useEffect(() => {
     if (user && !isLoading) {
-      router.push("/")
+      router.push("/");
     }
-  }, [user, isLoading, router])
+  }, [user, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!email || !password) {
-      return
+      return;
     }
 
-    setLoginLoading(true)
+    setLoginLoading(true);
 
     try {
-      const success = await login(email, password)
+      const success = await login(email, password);
 
       if (success) {
         // Save email if remember me is checked
         if (rememberMe) {
-          localStorage.setItem("rememberedEmail", email)
+          localStorage.setItem("rememberedEmail", email);
         } else {
-          localStorage.removeItem("rememberedEmail")
+          localStorage.removeItem("rememberedEmail");
         }
 
-        setLoginSuccess(true)
+        setLoginSuccess(true);
 
         // Small delay to show success state
         setTimeout(() => {
-          router.push("/")
-        }, 1000)
+          router.push("/");
+        }, 1000);
       }
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("Login error:", error);
     } finally {
-      setLoginLoading(false)
+      setLoginLoading(false);
     }
-  }
+  };
 
   const formatLastLogin = (timestamp: string | null) => {
-    if (!timestamp) return "Belum ada"
+    if (!timestamp) return "Belum ada";
 
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60)
+    );
 
-    if (diffInMinutes < 1) return "Baru saja"
-    if (diffInMinutes < 60) return `${diffInMinutes} menit yang lalu`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} jam yang lalu`
+    if (diffInMinutes < 1) return "Baru saja";
+    if (diffInMinutes < 60) return `${diffInMinutes} menit yang lalu`;
+    if (diffInMinutes < 1440)
+      return `${Math.floor(diffInMinutes / 60)} jam yang lalu`;
     return date.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -173,7 +181,7 @@ export default function LoginPage() {
           <p className="text-emerald-600 font-medium">Memuat...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -196,7 +204,7 @@ export default function LoginPage() {
                     <BookOpen className="h-8 w-8 text-white" />
                   </div>
                   <CardTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                    Sistem Kehadiran Kelas
+                    Sistem Tahfidz PP Hubbul Khoir
                   </CardTitle>
                   <CardDescription className="text-gray-600">
                     Masuk ke sistem manajemen kehadiran dan hafalan
@@ -205,9 +213,14 @@ export default function LoginPage() {
 
                 <CardContent className="space-y-6">
                   {error && (
-                    <Alert variant="destructive" className="border-red-200 bg-red-50">
+                    <Alert
+                      variant="destructive"
+                      className="border-red-200 bg-red-50"
+                    >
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
+                      <AlertDescription className="text-red-700">
+                        {error}
+                      </AlertDescription>
                     </Alert>
                   )}
 
@@ -222,7 +235,10 @@ export default function LoginPage() {
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
+                      <Label
+                        htmlFor="email"
+                        className="text-sm font-semibold text-gray-700"
+                      >
                         Email
                       </Label>
                       <div className="relative">
@@ -240,7 +256,10 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
+                      <Label
+                        htmlFor="password"
+                        className="text-sm font-semibold text-gray-700"
+                      >
                         Password
                       </Label>
                       <div className="relative">
@@ -259,7 +278,11 @@ export default function LoginPage() {
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -268,9 +291,14 @@ export default function LoginPage() {
                       <Checkbox
                         id="remember"
                         checked={rememberMe}
-                        onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                        onCheckedChange={(checked) =>
+                          setRememberMe(checked as boolean)
+                        }
                       />
-                      <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
+                      <Label
+                        htmlFor="remember"
+                        className="text-sm text-gray-600 cursor-pointer"
+                      >
                         Ingat email saya
                       </Label>
                     </div>
@@ -278,7 +306,9 @@ export default function LoginPage() {
                     <AnimatedButton
                       type="submit"
                       className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                      disabled={!email || !password || loginLoading || loginSuccess}
+                      disabled={
+                        !email || !password || loginLoading || loginSuccess
+                      }
                     >
                       {loginLoading ? (
                         <div className="flex items-center gap-2">
@@ -307,10 +337,12 @@ export default function LoginPage() {
           <FadeIn delay={0.4}>
             <div className="space-y-6">
               <div className="text-center lg:text-left">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">Sistem Manajemen Kelas Tahfidz</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  Sistem Manajemen Kelas Tahfidz
+                </h2>
                 <p className="text-lg text-gray-600 mb-8">
-                  Platform terintegrasi untuk mengelola kehadiran ustadz, progress hafalan santri, dan laporan
-                  komprehensif.
+                  Platform terintegrasi untuk mengelola kehadiran ustadz,
+                  progress hafalan santri, dan laporan komprehensif.
                 </p>
               </div>
 
@@ -321,7 +353,9 @@ export default function LoginPage() {
                       <Users className="h-6 w-6 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">{loginStats.totalUsers}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {loginStats.totalUsers}
+                      </p>
                       <p className="text-sm text-gray-600">Total Pengguna</p>
                     </div>
                   </div>
@@ -333,7 +367,9 @@ export default function LoginPage() {
                       <UserCheck className="h-6 w-6 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-gray-900">{loginStats.activeUsers}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {loginStats.activeUsers}
+                      </p>
                       <p className="text-sm text-gray-600">Pengguna Aktif</p>
                     </div>
                   </div>
@@ -345,15 +381,21 @@ export default function LoginPage() {
                       <Clock className="h-6 w-6 text-purple-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Login Terakhir</p>
-                      <p className="text-xs text-gray-600">{formatLastLogin(loginStats.lastLoginTime)}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Login Terakhir
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {formatLastLogin(loginStats.lastLoginTime)}
+                      </p>
                     </div>
                   </div>
                 </AnimatedCard>
               </StaggerContainer>
 
               <AnimatedCard className="p-6 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Fitur Utama</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Fitur Utama
+                </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
                     <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">
@@ -412,5 +454,5 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
-  )
+  );
 }

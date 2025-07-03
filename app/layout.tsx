@@ -7,7 +7,8 @@ import { AuthProvider } from "@/hooks/use-auth";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Sistem Tahfidz Hubbul Khoir",
+  title: "Sistem Tahfidz PP Hubbul Khoir",
+
   description: "Aplikasi untuk mengelola absensi Ustadz dan hafalan santri",
 };
 

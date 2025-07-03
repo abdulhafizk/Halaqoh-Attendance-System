@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const SignOut = async () => {
     try {
       setError(null);
 
@@ -254,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, login, logout, hasPermission, isLoading, error }}
+      value={{ user, profile, login, SignOut, hasPermission, isLoading, error }}
     >
       {children}
     </AuthContext.Provider>

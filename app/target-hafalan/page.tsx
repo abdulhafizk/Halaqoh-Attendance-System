@@ -40,6 +40,25 @@ import { AnimatedCard } from "@/components/animated-card";
 import { AnimatedButton } from "@/components/animated-button";
 import { FadeIn } from "@/components/fade-in";
 import { motion } from "framer-motion";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface TargetHafalan {
   id: string;
@@ -1169,30 +1188,35 @@ export default function TargetHafalanPage() {
                       >
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <Users className="h-6 w-6 text-green-600" />
+                            <Users className="h-6 w-6 text-indigo-600" />
                             <div>
                               <h3 className="text-xl font-bold text-gray-900">
-                                {target.kelas}
+                                {kelasData.kelas}
                               </h3>
                               <p className="text-sm text-gray-600">
-                                Target untuk semua santri di kelas ini
+                                Target Kelas:{" "}
+                                <strong>{kelasData.targetJuz} Juz</strong> untuk
+                                semua santri
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <Badge className="bg-purple-100 text-purple-800 text-sm px-3 py-1">
-                              Target: {target.target_juz} Juz
-                            </Badge>
-                            <AnimatedButton
-                              onClick={() => handleEdit(target)}
+                            <Button
+                              onClick={() => downloadKelasData(kelasData)}
                               variant="outline"
                               size="sm"
                               className="rounded-lg"
-                              disabled={loading}
                             >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Edit
-                            </AnimatedButton>
+                              <Download className="h-4 w-4 mr-1" />
+                              Download Data
+                            </Button>
+                            <Badge className="bg-purple-100 text-purple-800 mb-1">
+                              {kelasData.summary.totalSantri} Santri
+                            </Badge>
+                            <p className="text-xs text-gray-600">
+                              Rata-rata:{" "}
+                              {kelasData.summary.averageHafalan.toFixed(1)} Juz
+                            </p>
                           </div>
                         </div>
 

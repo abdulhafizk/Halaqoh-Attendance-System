@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import {
   CardContent,
@@ -112,7 +111,7 @@ export default function TargetHafalanPage() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    if (user && hasPermission("manage_target_hafalan")) {
+    if (user && hasPermission("manage_users")) {
       loadInitialData();
     }
   }, [user, hasPermission]);

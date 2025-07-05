@@ -1,99 +1,126 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FileText, ArrowLeft, Calendar, BookOpen, Users, Save, FileDown, Filter, TrendingUp } from "lucide-react"
-import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
-import { Navbar } from "@/components/navbar"
-import { supabase } from "@/lib/supabase"
-import { AnimatedCard } from "@/components/animated-card"
-import { AnimatedButton } from "@/components/animated-button"
-import { FadeIn } from "@/components/fade-in"
-import { StaggerContainer, StaggerItem } from "@/components/stagger-container"
-import { motion } from "framer-motion"
+import { useState, useEffect, useRef } from "react";
+import {
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  FileText,
+  ArrowLeft,
+  Calendar,
+  BookOpen,
+  Users,
+  Save,
+  FileDown,
+  Filter,
+  TrendingUp,
+} from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { Navbar } from "@/components/navbar";
+import { supabase } from "@/lib/supabase";
+import { AnimatedCard } from "@/components/animated-card";
+import { AnimatedButton } from "@/components/animated-button";
+import { FadeIn } from "@/components/fade-in";
+import { StaggerContainer, StaggerItem } from "@/components/stagger-container";
+import { motion } from "framer-motion";
 
 interface MemorizationRecord {
-  id: string
-  santriId: string
-  santriName: string
-  kelas: string
-  date: string
-  totalHafalan: number // Now represents Juz
-  quality: "Baik" | "Cukup" | "Kurang"
-  notes: string
+  id: string;
+  santriId: string;
+  santriName: string;
+  kelas: string;
+  date: string;
+  totalHafalan: number; // Now represents Juz
+  quality: "Baik" | "Cukup" | "Kurang";
+  notes: string;
 }
 
 interface SantriRecap {
-  santriId: string
-  santriName: string
-  kelas: string
-  totalHafalanJuz: number
-  averageQuality: number
+  santriId: string;
+  santriName: string;
+  kelas: string;
+  totalHafalanJuz: number;
+  averageQuality: number;
   qualityDistribution: {
-    baik: number
-    cukup: number
-    kurang: number
-  }
-  notes: string
+    baik: number;
+    cukup: number;
+    kurang: number;
+  };
+  notes: string;
 }
 
 interface KelasSummary {
-  kelas: string
-  totalSantri: number
-  totalHafalan: number
-  averageQuality: number
-  activeSantri: number
+  kelas: string;
+  totalSantri: number;
+  totalHafalan: number;
+  averageQuality: number;
+  activeSantri: number;
 }
 
 export default function MemorizationRecapPage() {
-  const { user, hasPermission, isLoading } = useAuth()
-  const [memorizationRecords, setMemorizationRecords] = useState<MemorizationRecord[]>([])
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [selectedKelas, setSelectedKelas] = useState("all")
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const tableRef = useRef<HTMLDivElement>(null)
+  const { user, hasPermission, isLoading } = useAuth();
+  const [memorizationRecords, setMemorizationRecords] = useState<
+    MemorizationRecord[]
+  >([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedKelas, setSelectedKelas] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user && hasPermission("view_reports")) {
-      loadMemorizationData()
+      loadMemorizationData();
     }
-  }, [user, hasPermission, selectedMonth, selectedYear])
+  }, [user, hasPermission, selectedMonth, selectedYear]);
 
   const loadMemorizationData = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const isDemoUser = user?.id?.startsWith("demo-")
+      const isDemoUser = user?.id?.startsWith("demo-");
 
       if (isDemoUser) {
         // Load from localStorage for demo users
-        const memorizationData = JSON.parse(localStorage.getItem("memorizationData") || "[]")
-        setMemorizationRecords(memorizationData)
+        const memorizationData = JSON.parse(
+          localStorage.getItem("memorizationData") || "[]"
+        );
+        setMemorizationRecords(memorizationData);
       } else {
         // Load from Supabase for real users
         const { data, error } = await supabase
           .from("memorization")
-          .select(`
+          .select(
+            `
             *,
             santri:santri_id (
               name,
               halaqoh
             )
-          `)
-          .order("created_at", { ascending: false })
+          `
+          )
+          .order("created_at", { ascending: false });
 
         if (error) {
-          console.error("Error loading memorization:", error)
-          setError("Gagal memuat data hafalan")
-          return
+          console.error("Error loading memorization:", error);
+          setError("Gagal memuat data hafalan");
+          return;
         }
 
         // Transform memorization data
@@ -107,63 +134,67 @@ export default function MemorizationRecapPage() {
             totalHafalan: record.ayah_to || 0, // ayah_to now stores total Juz
             quality: record.quality as "Baik" | "Cukup" | "Kurang",
             notes: record.notes || "",
-          })) || []
+          })) || [];
 
-        setMemorizationRecords(transformedMemorization)
+        setMemorizationRecords(transformedMemorization);
       }
     } catch (error) {
-      console.error("Error loading memorization data:", error)
-      setError("Terjadi kesalahan saat memuat data")
+      console.error("Error loading memorization data:", error);
+      setError("Terjadi kesalahan saat memuat data");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getFilteredRecords = () => {
     return memorizationRecords.filter((record) => {
-      const recordDate = new Date(record.date)
-      const monthMatch = recordDate.getMonth() === selectedMonth
-      const yearMatch = recordDate.getFullYear() === selectedYear
-      const kelasMatch = selectedKelas === "all" || record.kelas === selectedKelas
+      const recordDate = new Date(record.date);
+      const monthMatch = recordDate.getMonth() === selectedMonth;
+      const yearMatch = recordDate.getFullYear() === selectedYear;
+      const kelasMatch =
+        selectedKelas === "all" || record.kelas === selectedKelas;
 
-      return monthMatch && yearMatch && kelasMatch
-    })
-  }
+      return monthMatch && yearMatch && kelasMatch;
+    });
+  };
 
   const getAvailableKelas = () => {
-    const kelasList = memorizationRecords.map((record) => record.kelas)
-    return [...new Set(kelasList)].filter(Boolean)
-  }
+    const kelasList = memorizationRecords.map((record) => record.kelas);
+    return [...new Set(kelasList)].filter(Boolean);
+  };
 
   const getSantriRecap = (): SantriRecap[] => {
-    const filteredRecords = getFilteredRecords()
-    const santriMap = new Map<string, MemorizationRecord[]>()
+    const filteredRecords = getFilteredRecords();
+    const santriMap = new Map<string, MemorizationRecord[]>();
 
     // Group records by santri
     filteredRecords.forEach((record) => {
       if (!santriMap.has(record.santriId)) {
-        santriMap.set(record.santriId, [])
+        santriMap.set(record.santriId, []);
       }
-      santriMap.get(record.santriId)!.push(record)
-    })
+      santriMap.get(record.santriId)!.push(record);
+    });
 
     // Calculate recap for each santri
     return Array.from(santriMap.entries())
       .map(([santriId, records]) => {
         // Get the latest hafalan record (highest total)
         const latestRecord = records.reduce((latest, current) =>
-          current.totalHafalan > latest.totalHafalan ? current : latest,
-        )
+          current.totalHafalan > latest.totalHafalan ? current : latest
+        );
 
         const qualityDistribution = {
           baik: records.filter((r) => r.quality === "Baik").length,
           cukup: records.filter((r) => r.quality === "Cukup").length,
           kurang: records.filter((r) => r.quality === "Kurang").length,
-        }
+        };
 
         const qualityScore =
-          qualityDistribution.baik * 3 + qualityDistribution.cukup * 2 + qualityDistribution.kurang * 1
-        const averageQuality = records.length > 0 ? qualityScore / records.length : 0
+          qualityDistribution.baik * 3 +
+          qualityDistribution.cukup * 2 +
+          qualityDistribution.kurang * 1;
+        const averageQuality =
+          records.length > 0 ? qualityScore / records.length : 0;
 
         return {
           santriId,
@@ -177,29 +208,36 @@ export default function MemorizationRecapPage() {
               .map((r) => r.notes)
               .filter(Boolean)
               .join("; ") || "",
-        }
+        };
       })
-      .sort((a, b) => a.santriName.localeCompare(b.santriName))
-  }
+      .sort((a, b) => a.santriName.localeCompare(b.santriName));
+  };
 
   const getKelasSummary = (): KelasSummary[] => {
-    const santriRecap = getSantriRecap()
-    const kelasMap = new Map<string, SantriRecap[]>()
+    const santriRecap = getSantriRecap();
+    const kelasMap = new Map<string, SantriRecap[]>();
 
     // Group by kelas
     santriRecap.forEach((santri) => {
       if (!kelasMap.has(santri.kelas)) {
-        kelasMap.set(santri.kelas, [])
+        kelasMap.set(santri.kelas, []);
       }
-      kelasMap.get(santri.kelas)!.push(santri)
-    })
+      kelasMap.get(santri.kelas)!.push(santri);
+    });
 
     return Array.from(kelasMap.entries())
       .map(([kelas, santriList]) => {
-        const totalSantri = santriList.length
-        const totalHafalan = santriList.reduce((sum, santri) => sum + santri.totalHafalanJuz, 0)
-        const averageQuality = santriList.reduce((sum, santri) => sum + santri.averageQuality, 0) / totalSantri
-        const activeSantri = santriList.filter((santri) => santri.totalHafalanJuz > 0).length
+        const totalSantri = santriList.length;
+        const totalHafalan = santriList.reduce(
+          (sum, santri) => sum + santri.totalHafalanJuz,
+          0
+        );
+        const averageQuality =
+          santriList.reduce((sum, santri) => sum + santri.averageQuality, 0) /
+          totalSantri;
+        const activeSantri = santriList.filter(
+          (santri) => santri.totalHafalanJuz > 0
+        ).length;
 
         return {
           kelas,
@@ -207,19 +245,19 @@ export default function MemorizationRecapPage() {
           totalHafalan,
           averageQuality,
           activeSantri,
-        }
+        };
       })
-      .sort((a, b) => a.kelas.localeCompare(b.kelas))
-  }
+      .sort((a, b) => a.kelas.localeCompare(b.kelas));
+  };
 
   const handleSave = async () => {
-    setSaving(true)
-    setError("")
-    setSuccess("")
+    setSaving(true);
+    setError("");
+    setSuccess("");
 
     try {
       // Simulate saving process
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Here you could save the recap data to database or generate a report
       const recapData = {
@@ -230,35 +268,39 @@ export default function MemorizationRecapPage() {
         kelasSummary: getKelasSummary(),
         generatedAt: new Date().toISOString(),
         generatedBy: user?.username,
-      }
+      };
 
       // Save to localStorage for demo
-      const savedReports = JSON.parse(localStorage.getItem("savedReports") || "[]")
+      const savedReports = JSON.parse(
+        localStorage.getItem("savedReports") || "[]"
+      );
       savedReports.push({
         id: Date.now().toString(),
         ...recapData,
-      })
-      localStorage.setItem("savedReports", JSON.stringify(savedReports))
+      });
+      localStorage.setItem("savedReports", JSON.stringify(savedReports));
 
-      setSuccess("Rekap hafalan berhasil disimpan!")
+      setSuccess("Rekap hafalan berhasil disimpan!");
     } catch (error) {
-      console.error("Error saving recap:", error)
-      setError("Gagal menyimpan rekap hafalan")
+      console.error("Error saving recap:", error);
+      setError("Gagal menyimpan rekap hafalan");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const exportToPDF = () => {
     // Create PDF content
-    const printContent = tableRef.current?.innerHTML || ""
-    const printWindow = window.open("", "_blank")
+    const printContent = tableRef.current?.innerHTML || "";
+    const printWindow = window.open("", "_blank");
 
     if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Rekap Hafalan ${months[selectedMonth]} ${selectedYear}</title>
+            <title>Rekap Hafalan ${
+              months[selectedMonth]
+            } ${selectedYear}</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 20px; }
               table { width: 100%; border-collapse: collapse; margin: 20px 0; }
@@ -276,7 +318,11 @@ export default function MemorizationRecapPage() {
             <div class="header">
               <h1>REKAP HAFALAN SANTRI</h1>
               <h2>${months[selectedMonth].toUpperCase()} ${selectedYear}</h2>
-              ${selectedKelas !== "all" ? `<h3>KELAS: ${selectedKelas}</h3>` : ""}
+              ${
+                selectedKelas !== "all"
+                  ? `<h3>KELAS: ${selectedKelas}</h3>`
+                  : ""
+              }
             </div>
             ${printContent}
             <div style="margin-top: 30px; text-align: right; font-size: 12px;">
@@ -285,15 +331,15 @@ export default function MemorizationRecapPage() {
             </div>
           </body>
         </html>
-      `)
-      printWindow.document.close()
-      printWindow.print()
+      `);
+      printWindow.document.close();
+      printWindow.print();
     }
-  }
+  };
 
   const exportToWord = () => {
-    const santriRecap = getSantriRecap()
-    const kelasSummary = getKelasSummary()
+    const santriRecap = getSantriRecap();
+    const kelasSummary = getKelasSummary();
 
     let wordContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
@@ -304,7 +350,7 @@ export default function MemorizationRecapPage() {
             body { font-family: Arial, sans-serif; }
             table { width: 100%; border-collapse: collapse; margin: 20px 0; }
             th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-            th { background-color: #f0f0f0; font-weight: bold; }
+            th { background-color: #000; font-weight: bold; }
             .header { text-align: center; margin-bottom: 30px; }
           </style>
         </head>
@@ -324,7 +370,7 @@ export default function MemorizationRecapPage() {
               <th>Total Hafalan (Juz)</th>
               <th>Rata-rata Kualitas</th>
             </tr>
-    `
+    `;
 
     kelasSummary.forEach((summary) => {
       wordContent += `
@@ -334,9 +380,10 @@ export default function MemorizationRecapPage() {
           <td>${summary.activeSantri}</td>
           <td>${summary.totalHafalan.toFixed(1)}</td>
           <td>${summary.averageQuality.toFixed(1)}/3.0</td>
+          
         </tr>
-      `
-    })
+      `;
+    });
 
     wordContent += `
           </table>
@@ -351,7 +398,7 @@ export default function MemorizationRecapPage() {
               <th>Kualitas Hafalan</th>
               <th>Catatan</th>
             </tr>
-    `
+    `;
 
     santriRecap.forEach((santri, index) => {
       wordContent += `
@@ -363,8 +410,8 @@ export default function MemorizationRecapPage() {
           <td>${santri.averageQuality.toFixed(1)}/3.0</td>
           <td>${santri.notes || "-"}</td>
         </tr>
-      `
-    })
+      `;
+    });
 
     wordContent += `
           </table>
@@ -375,24 +422,24 @@ export default function MemorizationRecapPage() {
           </p>
         </body>
       </html>
-    `
+    `;
 
-    const blob = new Blob([wordContent], { type: "application/msword" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `Rekap_Hafalan_${months[selectedMonth]}_${selectedYear}.doc`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
+    const blob = new Blob([wordContent], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Rekap_Hafalan_${months[selectedMonth]}_${selectedYear}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const getQualityColor = (quality: number) => {
-    if (quality >= 2.5) return "text-green-600 bg-green-50"
-    if (quality >= 2.0) return "text-yellow-600 bg-yellow-50"
-    return "text-red-600 bg-red-50"
-  }
+    if (quality >= 2.5) return "text-green-600 bg-green-50";
+    if (quality >= 2.0) return "text-yellow-600 bg-yellow-50";
+    return "text-red-600 bg-red-50";
+  };
 
   if (isLoading) {
     return (
@@ -404,10 +451,12 @@ export default function MemorizationRecapPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Memuat data rekap hafalan...</p>
+          <p className="text-gray-600 font-medium">
+            Memuat data rekap hafalan...
+          </p>
         </motion.div>
       </div>
-    )
+    );
   }
 
   if (!user || !hasPermission("view_reports")) {
@@ -417,11 +466,15 @@ export default function MemorizationRecapPage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="h-8 w-8 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Akses Ditolak</h1>
-          <p className="text-gray-600">Anda tidak memiliki izin untuk mengakses halaman ini.</p>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">
+            Akses Ditolak
+          </h1>
+          <p className="text-gray-600">
+            Anda tidak memiliki izin untuk mengakses halaman ini.
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   const months = [
@@ -437,10 +490,10 @@ export default function MemorizationRecapPage() {
     "Oktober",
     "November",
     "Desember",
-  ]
+  ];
 
-  const santriRecap = getSantriRecap()
-  const kelasSummary = getKelasSummary()
+  const santriRecap = getSantriRecap();
+  const kelasSummary = getKelasSummary();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -451,7 +504,10 @@ export default function MemorizationRecapPage() {
           <FadeIn delay={0.1}>
             <div className="mb-8">
               <Link href="/">
-                <Button variant="ghost" className="mb-4 hover:bg-white/50 rounded-xl">
+                <Button
+                  variant="ghost"
+                  className="mb-4 hover:bg-white/50 rounded-xl"
+                >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Kembali ke Dashboard
                 </Button>
@@ -461,7 +517,9 @@ export default function MemorizationRecapPage() {
                   <BookOpen className="h-8 w-8" />
                   Rekap Hafalan Bulanan
                 </h1>
-                <p className="text-blue-100">Laporan komprehensif hafalan santri per kelas dalam Juz</p>
+                <p className="text-blue-100">
+                  Laporan komprehensif hafalan santri per kelas dalam Juz
+                </p>
               </div>
             </div>
           </FadeIn>
@@ -487,16 +545,22 @@ export default function MemorizationRecapPage() {
 
                 {success && (
                   <Alert className="border-green-200 bg-green-50 mb-4">
-                    <AlertDescription className="text-green-700">{success}</AlertDescription>
+                    <AlertDescription className="text-green-700">
+                      {success}
+                    </AlertDescription>
                   </Alert>
                 )}
 
                 <div className="flex flex-wrap gap-4 items-end">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Bulan</label>
+                    <label className="text-sm font-semibold text-gray-700">
+                      Bulan
+                    </label>
                     <Select
                       value={selectedMonth.toString()}
-                      onValueChange={(value) => setSelectedMonth(Number.parseInt(value))}
+                      onValueChange={(value) =>
+                        setSelectedMonth(Number.parseInt(value))
+                      }
                     >
                       <SelectTrigger className="w-40 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
                         <SelectValue />
@@ -512,10 +576,14 @@ export default function MemorizationRecapPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Tahun</label>
+                    <label className="text-sm font-semibold text-gray-700">
+                      Tahun
+                    </label>
                     <Select
                       value={selectedYear.toString()}
-                      onValueChange={(value) => setSelectedYear(Number.parseInt(value))}
+                      onValueChange={(value) =>
+                        setSelectedYear(Number.parseInt(value))
+                      }
                     >
                       <SelectTrigger className="w-32 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
                         <SelectValue />
@@ -531,8 +599,13 @@ export default function MemorizationRecapPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Kelas</label>
-                    <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+                    <label className="text-sm font-semibold text-gray-700">
+                      Kelas
+                    </label>
+                    <Select
+                      value={selectedKelas}
+                      onValueChange={setSelectedKelas}
+                    >
                       <SelectTrigger className="w-48 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
                         <SelectValue />
                       </SelectTrigger>
@@ -580,7 +653,9 @@ export default function MemorizationRecapPage() {
               },
               {
                 title: "Total Hafalan",
-                value: santriRecap.reduce((sum, santri) => sum + santri.totalHafalanJuz, 0).toFixed(1),
+                value: santriRecap
+                  .reduce((sum, santri) => sum + santri.totalHafalanJuz, 0)
+                  .toFixed(1),
                 subtitle: "Juz dihafal",
                 icon: BookOpen,
                 gradient: "from-green-500 to-emerald-600",
@@ -590,7 +665,10 @@ export default function MemorizationRecapPage() {
                 value:
                   santriRecap.length > 0
                     ? (
-                        santriRecap.reduce((sum, santri) => sum + santri.totalHafalanJuz, 0) / santriRecap.length
+                        santriRecap.reduce(
+                          (sum, santri) => sum + santri.totalHafalanJuz,
+                          0
+                        ) / santriRecap.length
                       ).toFixed(1)
                     : "0.0",
                 subtitle: "Juz per santri",
@@ -602,7 +680,10 @@ export default function MemorizationRecapPage() {
                 value:
                   santriRecap.length > 0
                     ? (
-                        santriRecap.reduce((sum, santri) => sum + santri.averageQuality, 0) / santriRecap.length
+                        santriRecap.reduce(
+                          (sum, santri) => sum + santri.averageQuality,
+                          0
+                        ) / santriRecap.length
                       ).toFixed(1)
                     : "0.0",
                 subtitle: "Dari 3.0",
@@ -612,20 +693,30 @@ export default function MemorizationRecapPage() {
             ].map((stat, index) => (
               <StaggerItem key={index}>
                 <AnimatedCard className="border-0 shadow-lg overflow-hidden">
-                  <div className={`h-2 bg-gradient-to-r ${stat.gradient}`}></div>
+                  <div
+                    className={`h-2 bg-gradient-to-r ${stat.gradient}`}
+                  ></div>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                        <p className="text-sm font-medium text-gray-600 mb-1">
+                          {stat.title}
+                        </p>
                         <motion.p
                           className="text-3xl font-bold text-gray-900"
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          transition={{ delay: 0.5 + index * 0.1, type: "spring", stiffness: 200 }}
+                          transition={{
+                            delay: 0.5 + index * 0.1,
+                            type: "spring",
+                            stiffness: 200,
+                          }}
                         >
                           {stat.value}
                         </motion.p>
-                        <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {stat.subtitle}
+                        </p>
                       </div>
                       <motion.div
                         className={`w-12 h-12 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center shadow-lg`}
@@ -647,43 +738,68 @@ export default function MemorizationRecapPage() {
               <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5" />
-                  REKAP HAFALAN {months[selectedMonth].toUpperCase()} {selectedYear}
-                  {selectedKelas !== "all" && <Badge className="bg-white/20 text-white ml-2">{selectedKelas}</Badge>}
+                  REKAP HAFALAN {months[selectedMonth].toUpperCase()}{" "}
+                  {selectedYear}
+                  {selectedKelas !== "all" && (
+                    <Badge className="bg-white/20 text-white ml-2">
+                      {selectedKelas}
+                    </Badge>
+                  )}
                 </CardTitle>
-                <CardDescription className="text-blue-100">Detail hafalan per santri dalam Juz</CardDescription>
+                <CardDescription className="text-blue-100">
+                  Detail hafalan per santri dalam Juz
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div ref={tableRef} className="overflow-x-auto">
                   {santriRecap.length === 0 ? (
                     <div className="text-center py-12">
                       <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg">Tidak ada data hafalan untuk periode ini</p>
-                      <p className="text-gray-400">Silakan pilih periode atau kelas yang berbeda</p>
+                      <p className="text-gray-500 text-lg">
+                        Tidak ada data hafalan untuk periode ini
+                      </p>
+                      <p className="text-gray-400">
+                        Silakan pilih periode atau kelas yang berbeda
+                      </p>
                     </div>
                   ) : (
                     <table className="w-full border-collapse bg-white">
                       <thead>
                         <tr className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">No</th>
-                          <th className="border border-gray-300 px-6 py-4 text-left font-bold">Nama Santri</th>
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">Kelas</th>
+                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
+                            No
+                          </th>
+                          <th className="border border-gray-300 px-6 py-4 text-left font-bold">
+                            Nama Santri
+                          </th>
+                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
+                            Kelas
+                          </th>
                           <th className="border border-gray-300 px-4 py-4 text-center font-bold">
                             Total Hafalan (Juz)
                           </th>
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">Kualitas Hafalan</th>
-                          <th className="border border-gray-300 px-6 py-4 text-left font-bold">Catatan</th>
+                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
+                            Kualitas Hafalan
+                          </th>
+                          <th className="border border-gray-300 px-6 py-4 text-left font-bold">
+                            Catatan
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {santriRecap.map((santri, index) => (
                           <motion.tr
                             key={santri.santriId}
-                            className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+                            className={`hover:bg-blue-50 transition-colors ${
+                              index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                            }`}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.03 }}
                           >
-                            <td className="border border-gray-300 px-4 py-4 text-center font-medium">{index + 1}</td>
+                            <td className="border border-gray-300 px-4 py-4 text-center font-medium">
+                              {index + 1}
+                            </td>
                             <td className="border border-gray-300 px-6 py-4 font-semibold text-gray-900">
                               {santri.santriName}
                             </td>
@@ -695,7 +811,9 @@ export default function MemorizationRecapPage() {
                             </td>
                             <td className="border border-gray-300 px-4 py-4 text-center">
                               <span
-                                className={`px-3 py-1 rounded-lg font-bold ${getQualityColor(santri.averageQuality)}`}
+                                className={`px-3 py-1 rounded-lg font-bold ${getQualityColor(
+                                  santri.averageQuality
+                                )}`}
                               >
                                 {santri.averageQuality.toFixed(1)}/3.0
                               </span>
@@ -738,5 +856,5 @@ export default function MemorizationRecapPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   CardContent,
   CardDescription,
@@ -8,6 +8,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,15 +21,38 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  FileText,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
+  Download,
+  FileText,
   Calendar,
+  User,
   BookOpen,
-  Users,
+  Star,
+  AlertCircle,
+  CheckCircle,
+  Edit,
+  Trash2,
   Save,
-  FileDown,
-  Filter,
-  TrendingUp,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,413 +61,453 @@ import { supabase } from "@/lib/supabase";
 import { AnimatedCard } from "@/components/animated-card";
 import { AnimatedButton } from "@/components/animated-button";
 import { FadeIn } from "@/components/fade-in";
-import { StaggerContainer, StaggerItem } from "@/components/stagger-container";
 import { motion } from "framer-motion";
 
 interface MemorizationRecord {
-  id: string;
   santriId: string;
   santriName: string;
   kelas: string;
-  date: string;
-  totalHafalan: number; // Now represents Juz
-  quality: "Baik" | "Cukup" | "Kurang";
-  notes: string;
-}
-
-interface SantriRecap {
-  santriId: string;
-  santriName: string;
-  kelas: string;
-  totalHafalanJuz: number;
-  averageQuality: number;
-  qualityDistribution: {
-    baik: number;
-    cukup: number;
-    kurang: number;
-  };
-  notes: string;
-}
-
-interface KelasSummary {
-  kelas: string;
-  totalSantri: number;
   totalHafalan: number;
-  averageQuality: number;
-  activeSantri: number;
+  quality: string;
+  notes: string;
+  lastUpdated: string;
+  latestRecordId?: string;
 }
 
 export default function MemorizationRecapPage() {
-  const { user, hasPermission, isLoading } = useAuth();
-  const [memorizationRecords, setMemorizationRecords] = useState<
+  const { user, hasPermission, isLoading: authLoading } = useAuth();
+  const [memorizationData, setMemorizationData] = useState<
     MemorizationRecord[]
   >([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [filteredData, setFilteredData] = useState<MemorizationRecord[]>([]);
+  const [availableKelas, setAvailableKelas] = useState<string[]>([]);
   const [selectedKelas, setSelectedKelas] = useState("all");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const tableRef = useRef<HTMLDivElement>(null);
+
+  // Edit functionality states
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MemorizationRecord | null>(
+    null
+  );
+  const [editFormData, setEditFormData] = useState({
+    totalHafalan: 0,
+    quality: "",
+    notes: "",
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (user && hasPermission("view_reports")) {
+    if (user && hasPermission("view_memorization")) {
       loadMemorizationData();
     }
-  }, [user, hasPermission, selectedMonth, selectedYear]);
+  }, [user, hasPermission]);
+
+  useEffect(() => {
+    filterData();
+  }, [memorizationData, selectedKelas, searchTerm]);
 
   const loadMemorizationData = async () => {
-    setLoading(true);
     try {
-      const isDemoUser = user?.id?.startsWith("demo-");
+      setIsLoading(true);
+      setError("");
+
+      // Check if user is demo user
+      const isDemoUser = user?.email === "demo@tahfidz.com";
 
       if (isDemoUser) {
-        // Load from localStorage for demo users
-        const memorizationData = JSON.parse(
-          localStorage.getItem("memorizationData") || "[]"
-        );
-        setMemorizationRecords(memorizationData);
-      } else {
-        // Load from Supabase for real users
-        const { data, error } = await supabase
-          .from("memorization")
-          .select(
-            `
-            *,
-            santri:santri_id (
-              name,
-              halaqoh
-            )
-          `
-          )
-          .order("created_at", { ascending: false });
+        // Load demo data from localStorage
+        const demoData = localStorage.getItem("demoMemorizationData");
+        if (demoData) {
+          const parsedData = JSON.parse(demoData);
+          setMemorizationData(parsedData);
 
-        if (error) {
-          console.error("Error loading memorization:", error);
-          setError("Gagal memuat data hafalan");
-          return;
+          // Extract unique classes
+          const classes = [
+            ...new Set(
+              parsedData.map((record: MemorizationRecord) => record.kelas)
+            ),
+          ];
+          setAvailableKelas(classes);
+        } else {
+          // Create demo data if not exists
+          const defaultDemoData = [
+            {
+              santriId: "demo1",
+              santriName: "Ahmad Fauzi",
+              kelas: "Kelas 7",
+              totalHafalan: 5.2,
+              quality: "Baik",
+              notes: "Progress sangat baik, perlu latihan tajwid",
+              lastUpdated: new Date().toISOString(),
+              latestRecordId: "demo_record_1",
+            },
+            {
+              santriId: "demo2",
+              santriName: "Fatimah Zahra",
+              kelas: "Kelas 8",
+              totalHafalan: 8.7,
+              quality: "Sangat Baik",
+              notes: "Hafalan sangat lancar, siap untuk ujian",
+              lastUpdated: new Date().toISOString(),
+              latestRecordId: "demo_record_2",
+            },
+            {
+              santriId: "demo3",
+              santriName: "Muhammad Rizki",
+              kelas: "Kelas 7",
+              totalHafalan: 3.5,
+              quality: "Cukup",
+              notes: "Perlu bimbingan lebih intensif",
+              lastUpdated: new Date().toISOString(),
+              latestRecordId: "demo_record_3",
+            },
+          ];
+          localStorage.setItem(
+            "demoMemorizationData",
+            JSON.stringify(defaultDemoData)
+          );
+          setMemorizationData(defaultDemoData);
+          setAvailableKelas(["Kelas 7", "Kelas 8"]);
         }
+      } else {
+        // Load real data from Supabase
+        const { data: santriData, error: santriError } = await supabase
+          .from("santri")
+          .select("id, name, halaqoh")
+          .order("name");
 
-        // Transform memorization data
-        const transformedMemorization: MemorizationRecord[] =
-          data?.map((record) => ({
-            id: record.id,
-            santriId: record.santri_id,
-            santriName: record.santri?.name || "",
-            kelas: record.santri?.halaqoh || "",
-            date: record.date,
-            totalHafalan: record.ayah_to || 0, // ayah_to now stores total Juz
-            quality: record.quality as "Baik" | "Cukup" | "Kurang",
-            notes: record.notes || "",
-          })) || [];
+        if (santriError) throw santriError;
 
-        setMemorizationRecords(transformedMemorization);
+        const { data: memorizationData, error: memorizationError } =
+          await supabase
+            .from("memorization")
+            .select("id, santri_id, ayah_to, quality, notes, created_at")
+            .order("created_at", { ascending: false });
+
+        if (memorizationError) throw memorizationError;
+
+        // Process data to get latest record for each santri
+        const santriMap = new Map();
+        santriData?.forEach((santri) => {
+          santriMap.set(santri.id, {
+            santriId: santri.id,
+            santriName: santri.name,
+            kelas: santri.halaqoh,
+            totalHafalan: 0,
+            quality: "Belum Ada Data",
+            notes: "",
+            lastUpdated: "",
+            latestRecordId: null,
+          });
+        });
+
+        // Update with latest memorization data
+        memorizationData?.forEach((record) => {
+          if (santriMap.has(record.santri_id)) {
+            const existing = santriMap.get(record.santri_id);
+            if (
+              !existing.lastUpdated ||
+              record.created_at > existing.lastUpdated
+            ) {
+              santriMap.set(record.santri_id, {
+                ...existing,
+                totalHafalan:
+                  typeof record.ayah_to === "number" ? record.ayah_to / 10 : 0,
+                quality: record.quality || "Belum Ada Data",
+                notes: record.notes || "",
+                lastUpdated: record.created_at,
+                latestRecordId: record.id,
+              });
+            }
+          }
+        });
+
+        const processedData = Array.from(santriMap.values());
+        setMemorizationData(processedData);
+
+        // Extract unique classes
+        const classes = [
+          ...new Set(
+            processedData.map((record) => record.kelas).filter(Boolean)
+          ),
+        ];
+        setAvailableKelas(classes);
       }
     } catch (error) {
       console.error("Error loading memorization data:", error);
-      setError("Terjadi kesalahan saat memuat data");
+      setError(
+        error instanceof Error ? error.message : "Gagal memuat data hafalan"
+      );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const getFilteredRecords = () => {
-    return memorizationRecords.filter((record) => {
-      const recordDate = new Date(record.date);
-      const monthMatch = recordDate.getMonth() === selectedMonth;
-      const yearMatch = recordDate.getFullYear() === selectedYear;
-      const kelasMatch =
-        selectedKelas === "all" || record.kelas === selectedKelas;
+  const filterData = () => {
+    let filtered = memorizationData;
 
-      return monthMatch && yearMatch && kelasMatch;
+    if (selectedKelas !== "all") {
+      filtered = filtered.filter((record) => record.kelas === selectedKelas);
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter((record) =>
+        record.santriName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredData(filtered);
+  };
+
+  const handleEdit = (record: MemorizationRecord) => {
+    setEditingRecord(record);
+    setEditFormData({
+      totalHafalan: record.totalHafalan,
+      quality: record.quality,
+      notes: record.notes,
     });
-  };
-
-  const getAvailableKelas = () => {
-    const kelasList = memorizationRecords.map((record) => record.kelas);
-    return [...new Set(kelasList)].filter(Boolean);
-  };
-
-  const getSantriRecap = (): SantriRecap[] => {
-    const filteredRecords = getFilteredRecords();
-    const santriMap = new Map<string, MemorizationRecord[]>();
-
-    // Group records by santri
-    filteredRecords.forEach((record) => {
-      if (!santriMap.has(record.santriId)) {
-        santriMap.set(record.santriId, []);
-      }
-      santriMap.get(record.santriId)!.push(record);
-    });
-
-    // Calculate recap for each santri
-    return Array.from(santriMap.entries())
-      .map(([santriId, records]) => {
-        // Get the latest hafalan record (highest total)
-        const latestRecord = records.reduce((latest, current) =>
-          current.totalHafalan > latest.totalHafalan ? current : latest
-        );
-
-        const qualityDistribution = {
-          baik: records.filter((r) => r.quality === "Baik").length,
-          cukup: records.filter((r) => r.quality === "Cukup").length,
-          kurang: records.filter((r) => r.quality === "Kurang").length,
-        };
-
-        const qualityScore =
-          qualityDistribution.baik * 3 +
-          qualityDistribution.cukup * 2 +
-          qualityDistribution.kurang * 1;
-        const averageQuality =
-          records.length > 0 ? qualityScore / records.length : 0;
-
-        return {
-          santriId,
-          santriName: latestRecord.santriName,
-          kelas: latestRecord.kelas,
-          totalHafalanJuz: latestRecord.totalHafalan,
-          averageQuality,
-          qualityDistribution,
-          notes:
-            records
-              .map((r) => r.notes)
-              .filter(Boolean)
-              .join("; ") || "",
-        };
-      })
-      .sort((a, b) => a.santriName.localeCompare(b.santriName));
-  };
-
-  const getKelasSummary = (): KelasSummary[] => {
-    const santriRecap = getSantriRecap();
-    const kelasMap = new Map<string, SantriRecap[]>();
-
-    // Group by kelas
-    santriRecap.forEach((santri) => {
-      if (!kelasMap.has(santri.kelas)) {
-        kelasMap.set(santri.kelas, []);
-      }
-      kelasMap.get(santri.kelas)!.push(santri);
-    });
-
-    return Array.from(kelasMap.entries())
-      .map(([kelas, santriList]) => {
-        const totalSantri = santriList.length;
-        const totalHafalan = santriList.reduce(
-          (sum, santri) => sum + santri.totalHafalanJuz,
-          0
-        );
-        const averageQuality =
-          santriList.reduce((sum, santri) => sum + santri.averageQuality, 0) /
-          totalSantri;
-        const activeSantri = santriList.filter(
-          (santri) => santri.totalHafalanJuz > 0
-        ).length;
-
-        return {
-          kelas,
-          totalSantri,
-          totalHafalan,
-          averageQuality,
-          activeSantri,
-        };
-      })
-      .sort((a, b) => a.kelas.localeCompare(b.kelas));
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
+    setIsEditDialogOpen(true);
     setError("");
     setSuccess("");
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingRecord) return;
 
     try {
-      // Simulate saving process
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsUpdating(true);
+      setError("");
 
-      // Here you could save the recap data to database or generate a report
-      const recapData = {
-        month: selectedMonth,
-        year: selectedYear,
-        kelas: selectedKelas,
-        santriRecap: getSantriRecap(),
-        kelasSummary: getKelasSummary(),
-        generatedAt: new Date().toISOString(),
-        generatedBy: user?.username,
-      };
+      // Validation
+      if (editFormData.totalHafalan < 0 || editFormData.totalHafalan > 30) {
+        setError("Total hafalan harus antara 0-30 Juz");
+        return;
+      }
 
-      // Save to localStorage for demo
-      const savedReports = JSON.parse(
-        localStorage.getItem("savedReports") || "[]"
-      );
-      savedReports.push({
-        id: Date.now().toString(),
-        ...recapData,
-      });
-      localStorage.setItem("savedReports", JSON.stringify(savedReports));
+      const isDemoUser = user?.email === "demo@tahfidz.com";
 
-      setSuccess("Rekap hafalan berhasil disimpan!");
+      if (isDemoUser) {
+        // Update demo data in localStorage
+        const demoData = JSON.parse(
+          localStorage.getItem("demoMemorizationData") || "[]"
+        );
+        const updatedData = demoData.map((record: MemorizationRecord) =>
+          record.santriId === editingRecord.santriId
+            ? {
+                ...record,
+                totalHafalan: editFormData.totalHafalan,
+                quality: editFormData.quality,
+                notes: editFormData.notes,
+                lastUpdated: new Date().toISOString(),
+              }
+            : record
+        );
+        localStorage.setItem(
+          "demoMemorizationData",
+          JSON.stringify(updatedData)
+        );
+        setMemorizationData(updatedData);
+      } else {
+        // Update real data in Supabase
+        if (!editingRecord.latestRecordId) {
+          setError("ID record tidak ditemukan");
+          return;
+        }
+
+        // Convert decimal to integer by multiplying by 10 to store in ayah_to column
+        const hafalanAsInteger = Math.round(editFormData.totalHafalan * 10);
+
+        const { error } = await supabase
+          .from("memorization")
+          .update({
+            ayah_to: hafalanAsInteger, // Store as integer (Juz * 10)
+            quality: editFormData.quality,
+            notes: editFormData.notes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingRecord.latestRecordId);
+
+        if (error) throw error;
+
+        // Reload data
+        await loadMemorizationData();
+      }
+
+      setSuccess("Data berhasil diperbarui!");
+      setIsEditDialogOpen(false);
+      setEditingRecord(null);
     } catch (error) {
-      console.error("Error saving recap:", error);
-      setError("Gagal menyimpan rekap hafalan");
+      console.error("Error updating memorization:", error);
+      setError(
+        error instanceof Error ? error.message : "Gagal memperbarui data"
+      );
     } finally {
-      setSaving(false);
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async (record: MemorizationRecord) => {
+    try {
+      setIsDeleting(true);
+      setError("");
+
+      const isDemoUser = user?.email === "demo@tahfidz.com";
+
+      if (isDemoUser) {
+        // Remove from demo data
+        const demoData = JSON.parse(
+          localStorage.getItem("demoMemorizationData") || "[]"
+        );
+        const updatedData = demoData.filter(
+          (r: MemorizationRecord) => r.santriId !== record.santriId
+        );
+        localStorage.setItem(
+          "demoMemorizationData",
+          JSON.stringify(updatedData)
+        );
+        setMemorizationData(updatedData);
+      } else {
+        // Delete from Supabase
+        if (!record.latestRecordId) {
+          setError("ID record tidak ditemukan");
+          return;
+        }
+
+        const { error } = await supabase
+          .from("memorization")
+          .delete()
+          .eq("id", record.latestRecordId);
+
+        if (error) throw error;
+
+        // Reload data
+        await loadMemorizationData();
+      }
+
+      setSuccess("Data berhasil dihapus!");
+    } catch (error) {
+      console.error("Error deleting memorization:", error);
+      setError(error instanceof Error ? error.message : "Gagal menghapus data");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getQualityBadge = (quality: string) => {
+    switch (quality.toLowerCase()) {
+      case "sangat baik":
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            Sangat Baik
+          </Badge>
+        );
+      case "baik":
+        return (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+            Baik
+          </Badge>
+        );
+      case "cukup":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            Cukup
+          </Badge>
+        );
+      case "kurang":
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200">
+            Kurang
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+            Belum Ada Data
+          </Badge>
+        );
     }
   };
 
   const exportToPDF = () => {
-    // Create PDF content
-    const printContent = tableRef.current?.innerHTML || "";
-    const printWindow = window.open("", "_blank");
-
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Rekap Hafalan ${
-              months[selectedMonth]
-            } ${selectedYear}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-              th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-              th { background-color: #f5f5f5; font-weight: bold; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .summary { margin: 20px 0; padding: 15px; background-color: #f9f9f9; }
-              @media print { 
-                body { margin: 0; }
-                .no-print { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>REKAP HAFALAN SANTRI</h1>
-              <h2>${months[selectedMonth].toUpperCase()} ${selectedYear}</h2>
-              ${
-                selectedKelas !== "all"
-                  ? `<h3>KELAS: ${selectedKelas}</h3>`
-                  : ""
-              }
-            </div>
-            ${printContent}
-            <div style="margin-top: 30px; text-align: right; font-size: 12px;">
-              <p>Digenerate pada: ${new Date().toLocaleDateString("id-ID")}</p>
-              <p>Oleh: ${user?.username}</p>
-            </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-    }
+    window.print();
   };
 
   const exportToWord = () => {
-    const santriRecap = getSantriRecap();
-    const kelasSummary = getKelasSummary();
-
-    let wordContent = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+    const htmlContent = `
+      <html>
         <head>
-          <meta charset='utf-8'>
-          <title>Rekap Hafalan ${months[selectedMonth]} ${selectedYear}</title>
+          <meta charset="utf-8">
+          <title>Rekap Hafalan Santri</title>
           <style>
-            body { font-family: Arial, sans-serif; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-            th { background-color: #000; font-weight: bold; }
-            .header { text-align: center; margin-bottom: 30px; }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { color: #333; text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .quality-sangat-baik { background-color: #d4edda; }
+            .quality-baik { background-color: #cce5ff; }
+            .quality-cukup { background-color: #fff3cd; }
+            .quality-kurang { background-color: #f8d7da; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>REKAP HAFALAN SANTRI</h1>
-            <h2>${months[selectedMonth].toUpperCase()} ${selectedYear}</h2>
-            ${selectedKelas !== "all" ? `<h3>KELAS: ${selectedKelas}</h3>` : ""}
-          </div>
-          
-          <h3>RINGKASAN PER KELAS</h3>
+          <h1>Rekap Hafalan Santri</h1>
+          <p>Tanggal: ${new Date().toLocaleDateString("id-ID")}</p>
+          <p>Total Santri: ${filteredData.length}</p>
           <table>
-            <tr>
-              <th>Kelas</th>
-              <th>Total Santri</th>
-              <th>Santri Aktif</th>
-              <th>Total Hafalan (Juz)</th>
-              <th>Rata-rata Kualitas</th>
-            </tr>
-    `;
-
-    kelasSummary.forEach((summary) => {
-      wordContent += `
-        <tr>
-          <td>${summary.kelas}</td>
-          <td>${summary.totalSantri}</td>
-          <td>${summary.activeSantri}</td>
-          <td>${summary.totalHafalan.toFixed(1)}</td>
-          <td>${summary.averageQuality.toFixed(1)}/3.0</td>
-          
-        </tr>
-      `;
-    });
-
-    wordContent += `
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama Santri</th>
+                <th>Kelas</th>
+                <th>Total Hafalan (Juz)</th>
+                <th>Kualitas</th>
+                <th>Catatan</th>
+                <th>Terakhir Update</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredData
+                .map(
+                  (record, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${record.santriName}</td>
+                  <td>${record.kelas}</td>
+                  <td>${record.totalHafalan.toFixed(1)}</td>
+                  <td class="quality-${record.quality
+                    .toLowerCase()
+                    .replace(" ", "-")}">${record.quality}</td>
+                  <td>${record.notes || "-"}</td>
+                  <td>${new Date(record.lastUpdated).toLocaleDateString(
+                    "id-ID"
+                  )}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
           </table>
-          
-          <h3>DETAIL PER SANTRI</h3>
-          <table>
-            <tr>
-              <th>No</th>
-              <th>Nama Santri</th>
-              <th>Kelas</th>
-              <th>Total Hafalan (Juz)</th>
-              <th>Kualitas Hafalan</th>
-              <th>Catatan</th>
-            </tr>
-    `;
-
-    santriRecap.forEach((santri, index) => {
-      wordContent += `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${santri.santriName}</td>
-          <td>${santri.kelas}</td>
-          <td>${santri.totalHafalanJuz} Juz</td>
-          <td>${santri.averageQuality.toFixed(1)}/3.0</td>
-          <td>${santri.notes || "-"}</td>
-        </tr>
-      `;
-    });
-
-    wordContent += `
-          </table>
-          <br><br>
-          <p style="text-align: right;">
-            Digenerate pada: ${new Date().toLocaleDateString("id-ID")}<br>
-            Oleh: ${user?.username}
-          </p>
         </body>
       </html>
     `;
 
-    const blob = new Blob([wordContent], { type: "application/msword" });
+    const blob = new Blob([htmlContent], { type: "application/msword" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Rekap_Hafalan_${months[selectedMonth]}_${selectedYear}.doc`;
-    document.body.appendChild(link);
+    link.download = `Rekap_Hafalan_${new Date()
+      .toISOString()
+      .slice(0, 10)}.doc`;
     link.click();
-    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const getQualityColor = (quality: number) => {
-    if (quality >= 2.5) return "text-green-600 bg-green-50";
-    if (quality >= 2.0) return "text-yellow-600 bg-yellow-50";
-    return "text-red-600 bg-red-50";
-  };
-
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
         <motion.div
@@ -452,19 +518,20 @@ export default function MemorizationRecapPage() {
         >
           <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">
-            Memuat data rekap hafalan...
+            {authLoading ? "Memuat autentikasi..." : "Memuat data hafalan..."}
           </p>
+          <p className="text-gray-500 text-sm mt-2">Mohon tunggu sebentar</p>
         </motion.div>
       </div>
     );
   }
 
-  if (!user || !hasPermission("view_reports")) {
+  if (!user || !hasPermission("view_memorization")) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
         <div className="text-center p-8 bg-white rounded-2xl shadow-xl">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="h-8 w-8 text-red-600" />
+            <BookOpen className="h-8 w-8 text-red-600" />
           </div>
           <h1 className="text-2xl font-bold text-red-600 mb-2">
             Akses Ditolak
@@ -476,24 +543,6 @@ export default function MemorizationRecapPage() {
       </div>
     );
   }
-
-  const months = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-  ];
-
-  const santriRecap = getSantriRecap();
-  const kelasSummary = getKelasSummary();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -515,103 +564,84 @@ export default function MemorizationRecapPage() {
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-8 text-white shadow-xl">
                 <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
                   <BookOpen className="h-8 w-8" />
-                  Rekap Hafalan Bulanan
+                  Rekap Hafalan Santri
                 </h1>
                 <p className="text-blue-100">
-                  Laporan komprehensif hafalan santri per kelas dalam Juz
+                  Lihat dan kelola progress hafalan semua santri dalam satu
+                  tampilan
                 </p>
+                <div className="mt-4 p-4 bg-white/10 rounded-lg border border-white/20">
+                  <p className="text-sm text-blue-100">
+                    📊 <strong>Total Data:</strong> {filteredData.length} santri
+                    | 📈 <strong>Rata-rata Hafalan:</strong>{" "}
+                    {filteredData.length > 0
+                      ? (
+                          filteredData.reduce(
+                            (sum, record) => sum + record.totalHafalan,
+                            0
+                          ) / filteredData.length
+                        ).toFixed(1)
+                      : "0"}{" "}
+                    Juz
+                  </p>
+                </div>
               </div>
             </div>
           </FadeIn>
 
-          {/* Filter Controls */}
-          <FadeIn delay={0.2}>
+          {/* Alerts */}
+          {error && (
+            <FadeIn delay={0.2}>
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </FadeIn>
+          )}
+
+          {success && (
+            <FadeIn delay={0.2}>
+              <Alert className="mb-6 border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700">
+                  {success}
+                </AlertDescription>
+              </Alert>
+            </FadeIn>
+          )}
+
+          {/* Filters and Actions */}
+          <FadeIn delay={0.3}>
             <AnimatedCard className="mb-8 border-0 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
-                  Filter Rekap
+                  <Calendar className="h-5 w-5" />
+                  Filter & Export Data
                 </CardTitle>
                 <CardDescription className="text-indigo-100">
-                  Pilih periode dan kelas untuk rekap hafalan
+                  Filter data berdasarkan kelas dan nama, atau export ke
+                  berbagai format
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                {error && (
-                  <Alert variant="destructive" className="mb-4">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {success && (
-                  <Alert className="border-green-200 bg-green-50 mb-4">
-                    <AlertDescription className="text-green-700">
-                      {success}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="flex flex-wrap gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">
-                      Bulan
-                    </label>
-                    <Select
-                      value={selectedMonth.toString()}
-                      onValueChange={(value) =>
-                        setSelectedMonth(Number.parseInt(value))
-                      }
+                    <Label
+                      htmlFor="kelas-filter"
+                      className="text-sm font-semibold text-gray-700"
                     >
-                      <SelectTrigger className="w-40 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {months.map((month, index) => (
-                          <SelectItem key={index} value={index.toString()}>
-                            {month}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">
-                      Tahun
-                    </label>
-                    <Select
-                      value={selectedYear.toString()}
-                      onValueChange={(value) =>
-                        setSelectedYear(Number.parseInt(value))
-                      }
-                    >
-                      <SelectTrigger className="w-32 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[2023, 2024, 2025].map((year) => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">
-                      Kelas
-                    </label>
+                      Filter Kelas
+                    </Label>
                     <Select
                       value={selectedKelas}
                       onValueChange={setSelectedKelas}
                     >
-                      <SelectTrigger className="w-48 h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
+                      <SelectTrigger className="h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Semua Kelas</SelectItem>
-                        {getAvailableKelas().map((kelas) => (
+                        {availableKelas.map((kelas) => (
                           <SelectItem key={kelas} value={kelas}>
                             {kelas}
                           </SelectItem>
@@ -620,17 +650,43 @@ export default function MemorizationRecapPage() {
                     </Select>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="search"
+                      className="text-sm font-semibold text-gray-700"
+                    >
+                      Cari Nama Santri
+                    </Label>
+                    <Input
+                      id="search"
+                      type="text"
+                      placeholder="Ketik nama santri..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Export PDF
+                    </Label>
                     <AnimatedButton
                       onClick={exportToPDF}
-                      className="h-12 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white rounded-xl"
+                      className="w-full h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl"
                     >
-                      <FileDown className="h-4 w-4 mr-2" />
+                      <Download className="h-4 w-4 mr-2" />
                       PDF
                     </AnimatedButton>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Export Word
+                    </Label>
                     <AnimatedButton
                       onClick={exportToWord}
-                      className="h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl"
+                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Word
@@ -641,220 +697,320 @@ export default function MemorizationRecapPage() {
             </AnimatedCard>
           </FadeIn>
 
-          {/* Summary Cards */}
-          <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[
-              {
-                title: "Total Santri",
-                value: santriRecap.length,
-                subtitle: "Santri terdaftar",
-                icon: Users,
-                gradient: "from-blue-500 to-indigo-600",
-              },
-              {
-                title: "Total Hafalan",
-                value: santriRecap
-                  .reduce((sum, santri) => sum + santri.totalHafalanJuz, 0)
-                  .toFixed(1),
-                subtitle: "Juz dihafal",
-                icon: BookOpen,
-                gradient: "from-green-500 to-emerald-600",
-              },
-              {
-                title: "Rata-rata Hafalan",
-                value:
-                  santriRecap.length > 0
-                    ? (
-                        santriRecap.reduce(
-                          (sum, santri) => sum + santri.totalHafalanJuz,
-                          0
-                        ) / santriRecap.length
-                      ).toFixed(1)
-                    : "0.0",
-                subtitle: "Juz per santri",
-                icon: Calendar,
-                gradient: "from-purple-500 to-pink-600",
-              },
-              {
-                title: "Rata-rata Kualitas",
-                value:
-                  santriRecap.length > 0
-                    ? (
-                        santriRecap.reduce(
-                          (sum, santri) => sum + santri.averageQuality,
-                          0
-                        ) / santriRecap.length
-                      ).toFixed(1)
-                    : "0.0",
-                subtitle: "Dari 3.0",
-                icon: TrendingUp,
-                gradient: "from-orange-500 to-red-600",
-              },
-            ].map((stat, index) => (
-              <StaggerItem key={index}>
-                <AnimatedCard className="border-0 shadow-lg overflow-hidden">
-                  <div
-                    className={`h-2 bg-gradient-to-r ${stat.gradient}`}
-                  ></div>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600 mb-1">
-                          {stat.title}
-                        </p>
-                        <motion.p
-                          className="text-3xl font-bold text-gray-900"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{
-                            delay: 0.5 + index * 0.1,
-                            type: "spring",
-                            stiffness: 200,
-                          }}
-                        >
-                          {stat.value}
-                        </motion.p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {stat.subtitle}
-                        </p>
-                      </div>
-                      <motion.div
-                        className={`w-12 h-12 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center shadow-lg`}
-                        whileHover={{ rotate: 10, scale: 1.1 }}
-                        transition={{ type: "spring", stiffness: 300 }}
-                      >
-                        <stat.icon className="h-6 w-6 text-white" />
-                      </motion.div>
-                    </div>
-                  </CardContent>
-                </AnimatedCard>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
-
-          {/* Main Recap Table */}
-          <FadeIn delay={0.5}>
+          {/* Data Table */}
+          <FadeIn delay={0.4}>
             <AnimatedCard className="border-0 shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
+              <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  REKAP HAFALAN {months[selectedMonth].toUpperCase()}{" "}
-                  {selectedYear}
-                  {selectedKelas !== "all" && (
-                    <Badge className="bg-white/20 text-white ml-2">
-                      {selectedKelas}
-                    </Badge>
-                  )}
+                  <User className="h-5 w-5" />
+                  Data Hafalan Santri ({filteredData.length})
                 </CardTitle>
-                <CardDescription className="text-blue-100">
-                  Detail hafalan per santri dalam Juz
+                <CardDescription className="text-green-100">
+                  Daftar lengkap progress hafalan semua santri
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6">
-                <div ref={tableRef} className="overflow-x-auto">
-                  {santriRecap.length === 0 ? (
-                    <div className="text-center py-12">
-                      <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg">
-                        Tidak ada data hafalan untuk periode ini
-                      </p>
-                      <p className="text-gray-400">
-                        Silakan pilih periode atau kelas yang berbeda
-                      </p>
-                    </div>
-                  ) : (
-                    <table className="w-full border-collapse bg-white">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
-                            No
-                          </th>
-                          <th className="border border-gray-300 px-6 py-4 text-left font-bold">
-                            Nama Santri
-                          </th>
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
-                            Kelas
-                          </th>
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
-                            Total Hafalan (Juz)
-                          </th>
-                          <th className="border border-gray-300 px-4 py-4 text-center font-bold">
-                            Kualitas Hafalan
-                          </th>
-                          <th className="border border-gray-300 px-6 py-4 text-left font-bold">
-                            Catatan
-                          </th>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          No
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Nama Santri
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Kelas
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Total Hafalan
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Kualitas
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Catatan
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Terakhir Update
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider no-print">
+                          Aksi
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredData.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-6 py-12 text-center">
+                            <div className="flex flex-col items-center">
+                              <BookOpen className="h-12 w-12 text-gray-300 mb-4" />
+                              <p className="text-gray-500 text-lg font-medium">
+                                Tidak ada data hafalan
+                              </p>
+                              <p className="text-gray-400 text-sm mt-2">
+                                {searchTerm || selectedKelas !== "all"
+                                  ? "Coba ubah filter pencarian"
+                                  : "Belum ada data hafalan yang tercatat"}
+                              </p>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {santriRecap.map((santri, index) => (
+                      ) : (
+                        filteredData.map((record, index) => (
                           <motion.tr
-                            key={santri.santriId}
-                            className={`hover:bg-blue-50 transition-colors ${
-                              index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                            }`}
+                            key={record.santriId}
+                            className="hover:bg-gray-50 transition-colors"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.03 }}
+                            transition={{ delay: 0.5 + index * 0.02 }}
                           >
-                            <td className="border border-gray-300 px-4 py-4 text-center font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {index + 1}
                             </td>
-                            <td className="border border-gray-300 px-6 py-4 font-semibold text-gray-900">
-                              {santri.santriName}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 flex items-center justify-center">
+                                    <span className="text-white font-semibold text-sm">
+                                      {record.santriName
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-semibold text-gray-900">
+                                    {record.santriName}
+                                  </div>
+                                </div>
+                              </div>
                             </td>
-                            <td className="border border-gray-300 px-4 py-4 text-center font-medium text-blue-600">
-                              {santri.kelas}
-                            </td>
-                            <td className="border border-gray-300 px-4 py-4 text-center font-bold text-green-600">
-                              {santri.totalHafalanJuz} Juz
-                            </td>
-                            <td className="border border-gray-300 px-4 py-4 text-center">
-                              <span
-                                className={`px-3 py-1 rounded-lg font-bold ${getQualityColor(
-                                  santri.averageQuality
-                                )}`}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 border-blue-200"
                               >
-                                {santri.averageQuality.toFixed(1)}/3.0
-                              </span>
+                                {record.kelas}
+                              </Badge>
                             </td>
-                            <td className="border border-gray-300 px-6 py-4 text-sm text-gray-600">
-                              {santri.notes || "-"}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <Star className="h-4 w-4 text-yellow-400 mr-2" />
+                                <span className="text-sm font-bold text-gray-900">
+                                  {record.totalHafalan.toFixed(1)} Juz
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {getQualityBadge(record.quality)}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div
+                                className="text-sm text-gray-600 max-w-xs truncate"
+                                title={record.notes}
+                              >
+                                {record.notes || "-"}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {record.lastUpdated
+                                ? new Date(
+                                    record.lastUpdated
+                                  ).toLocaleDateString("id-ID", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "-"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium no-print">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEdit(record)}
+                                  className="h-8 px-3 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                >
+                                  <Edit className="h-3 w-3 mr-1" />
+                                  Edit
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 px-3 text-red-600 border-red-200 hover:bg-red-50 bg-transparent"
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Hapus
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Konfirmasi Hapus
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Apakah Anda yakin ingin menghapus data
+                                        hafalan untuk{" "}
+                                        <strong>{record.santriName}</strong>?
+                                        Tindakan ini tidak dapat dibatalkan.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Batal
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDelete(record)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                        disabled={isDeleting}
+                                      >
+                                        {isDeleting ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Menghapus...
+                                          </>
+                                        ) : (
+                                          "Hapus"
+                                        )}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </td>
                           </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                {/* Save Button */}
-                {santriRecap.length > 0 && (
-                  <div className="mt-8 flex justify-center">
-                    <AnimatedButton
-                      onClick={handleSave}
-                      className="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg"
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Menyimpan Rekap...
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <Save className="h-5 w-5" />
-                          Simpan Rekap Hafalan
-                        </div>
+                        ))
                       )}
-                    </AnimatedButton>
-                  </div>
-                )}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </AnimatedCard>
           </FadeIn>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Edit Data Hafalan
+            </DialogTitle>
+            <DialogDescription>
+              Edit data hafalan untuk{" "}
+              <strong>{editingRecord?.santriName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-hafalan">Total Hafalan (Juz)</Label>
+              <Input
+                id="edit-hafalan"
+                type="number"
+                step="0.1"
+                min="0"
+                max="30"
+                value={editFormData.totalHafalan}
+                onChange={(e) =>
+                  setEditFormData({
+                    ...editFormData,
+                    totalHafalan: Number.parseFloat(e.target.value) || 0,
+                  })
+                }
+                className="h-12"
+              />
+              <p className="text-xs text-gray-500">
+                Masukkan jumlah Juz yang telah dihafal (0-30)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-quality">Kualitas Hafalan</Label>
+              <Select
+                value={editFormData.quality}
+                onValueChange={(value) =>
+                  setEditFormData({ ...editFormData, quality: value })
+                }
+              >
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Pilih kualitas hafalan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sangat Baik">Sangat Baik</SelectItem>
+                  <SelectItem value="Baik">Baik</SelectItem>
+                  <SelectItem value="Cukup">Cukup</SelectItem>
+                  <SelectItem value="Kurang">Kurang</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Catatan</Label>
+              <Textarea
+                id="edit-notes"
+                placeholder="Tambahkan catatan tentang progress hafalan..."
+                value={editFormData.notes}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, notes: e.target.value })
+                }
+                className="min-h-[100px] resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={isUpdating}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleEditSubmit}
+              disabled={isUpdating}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Simpan Perubahan
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+          }
+          .bg-gradient-to-r,
+          .bg-gradient-to-br {
+            background: #4f46e5 !important;
+            color: white !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,15 +1,19 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import type React from "react"
+import { motion } from "framer-motion";
+import type React from "react";
 
 interface StaggerContainerProps {
-  children: React.ReactNode
-  className?: string
-  staggerDelay?: number
+  children: React.ReactNode;
+  className?: string;
+  staggerDelay?: number;
 }
 
-export function StaggerContainer({ children, className = "", staggerDelay = 0.1 }: StaggerContainerProps) {
+export function StaggerContainer({
+  children,
+  className = "",
+  staggerDelay = 0.1,
+}: StaggerContainerProps) {
   return (
     <motion.div
       initial="hidden"
@@ -27,10 +31,16 @@ export function StaggerContainer({ children, className = "", staggerDelay = 0.1 
     >
       {children}
     </motion.div>
-  )
+  );
 }
 
-export function StaggerItem({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function StaggerItem({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div
       variants={{
@@ -42,5 +52,5 @@ export function StaggerItem({ children, className = "" }: { children: React.Reac
     >
       {children}
     </motion.div>
-  )
+  );
 }

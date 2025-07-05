@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { Input } from "@/components/ui/input"
-import { motion } from "framer-motion"
-import type React from "react"
+import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
+import type React from "react";
 
 interface AnimatedInputProps {
-  placeholder?: string
-  value?: string
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  type?: string
-  className?: string
-  disabled?: boolean
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  className?: string;
+  disabled?: boolean;
 }
 
 export function AnimatedInput({
@@ -22,7 +22,10 @@ export function AnimatedInput({
   disabled = false,
 }: AnimatedInputProps) {
   return (
-    <motion.div whileFocus={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+    <motion.div
+      whileFocus={{ scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    >
       <Input
         placeholder={placeholder}
         value={value}
@@ -32,5 +35,5 @@ export function AnimatedInput({
         disabled={disabled}
       />
     </motion.div>
-  )
+  );
 }

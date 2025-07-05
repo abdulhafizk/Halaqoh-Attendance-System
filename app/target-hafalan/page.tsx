@@ -30,6 +30,8 @@ import {
   Users,
   Loader2,
   AlertCircle,
+  Download,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,6 +41,19 @@ import { AnimatedCard } from "@/components/animated-card";
 import { AnimatedButton } from "@/components/animated-button";
 import { FadeIn } from "@/components/fade-in";
 import { motion } from "framer-motion";
+import { HafalanChart } from "@/components/hafalan-chart";
+import {
+  generateHafalanChartPDF,
+  downloadChartAsImage,
+} from "@/lib/pdf-generator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface TargetHafalan {
   id: string;
@@ -93,6 +108,10 @@ export default function TargetHafalanPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [selectedKelas, setSelectedKelas] = useState("");
+  const [selectedChartKelas, setSelectedChartKelas] =
+    useState<KelasProgress | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   const [formData, setFormData] = useState({
     target_juz: "",
     merah_min: "0",
@@ -337,6 +356,30 @@ export default function TargetHafalanPage() {
     }
   };
 
+  const handleDownloadPDF = async (kelasData: KelasProgress) => {
+    try {
+      setIsGeneratingPDF(true);
+
+      const chartData = {
+        kelas: kelasData.kelas,
+        santriList: kelasData.santriList.map((santri) => ({
+          name: santri.santriName,
+          hafalan: santri.currentHafalan,
+          target: santri.targetJuz,
+          colorCategory: santri.colorCategory,
+        })),
+        targetJuz: kelasData.targetJuz,
+      };
+
+      await generateHafalanChartPDF(chartData);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      setError("Gagal membuat PDF. Silakan coba lagi.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // clear previous messages
     setError("");
@@ -453,6 +496,33 @@ export default function TargetHafalanPage() {
       return kelasProgress;
     }
     return kelasProgress.filter((kelas) => kelas.kelas === selectedViewKelas);
+  };
+
+  const handleDownloadImage = async (
+    kelasData: KelasProgress,
+    format: "png" | "jpg" = "png"
+  ) => {
+    try {
+      setIsDownloadingImage(true);
+
+      const chartData = {
+        kelas: kelasData.kelas,
+        santriList: kelasData.santriList.map((santri) => ({
+          name: santri.santriName,
+          hafalan: santri.currentHafalan,
+          target: santri.targetJuz,
+          colorCategory: santri.colorCategory,
+        })),
+        targetJuz: kelasData.targetJuz,
+      };
+
+      await downloadChartAsImage(chartData, format);
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      setError("Gagal mendownload gambar. Silakan coba lagi.");
+    } finally {
+      setIsDownloadingImage(false);
+    }
   };
 
   if (authLoading || dataLoading) {
@@ -984,17 +1054,125 @@ export default function TargetHafalanPage() {
                                     </p>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <Badge className="bg-purple-100 text-purple-800 mb-1">
-                                    {kelasData.summary.totalSantri} Santri
-                                  </Badge>
-                                  <p className="text-xs text-gray-600">
-                                    Rata-rata:{" "}
-                                    {kelasData.summary.averageHafalan.toFixed(
-                                      1
-                                    )}{" "}
-                                    Juz
-                                  </p>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-right">
+                                    <Badge className="bg-purple-100 text-purple-800 mb-1">
+                                      {kelasData.summary.totalSantri} Santri
+                                    </Badge>
+                                    <p className="text-xs text-gray-600">
+                                      Rata-rata:{" "}
+                                      {kelasData.summary.averageHafalan.toFixed(
+                                        1
+                                      )}{" "}
+                                      Juz
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="rounded-lg bg-transparent"
+                                          onClick={() =>
+                                            setSelectedChartKelas(kelasData)
+                                          }
+                                        >
+                                          <BarChart3 className="h-4 w-4 mr-1" />
+                                          Lihat Chart
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                                        <DialogHeader>
+                                          <DialogTitle className="flex items-center justify-between">
+                                            <span>
+                                              Chart Capaian Hafalan -{" "}
+                                              {kelasData.kelas}
+                                            </span>
+                                            <div className="flex gap-2">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                  selectedChartKelas &&
+                                                  handleDownloadImage(
+                                                    selectedChartKelas,
+                                                    "png"
+                                                  )
+                                                }
+                                                disabled={isDownloadingImage}
+                                                className="text-xs"
+                                              >
+                                                {isDownloadingImage ? (
+                                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                ) : (
+                                                  <Download className="h-3 w-3 mr-1" />
+                                                )}
+                                                PNG
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                  selectedChartKelas &&
+                                                  handleDownloadImage(
+                                                    selectedChartKelas,
+                                                    "jpg"
+                                                  )
+                                                }
+                                                disabled={isDownloadingImage}
+                                                className="text-xs"
+                                              >
+                                                {isDownloadingImage ? (
+                                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                ) : (
+                                                  <Download className="h-3 w-3 mr-1" />
+                                                )}
+                                                JPG
+                                              </Button>
+                                            </div>
+                                          </DialogTitle>
+                                          <DialogDescription>
+                                            Diagram batang menunjukkan progress
+                                            hafalan setiap santri terhadap
+                                            target kelas
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        {selectedChartKelas && (
+                                          <HafalanChart
+                                            kelas={selectedChartKelas.kelas}
+                                            santriList={selectedChartKelas.santriList.map(
+                                              (s) => ({
+                                                name: s.santriName,
+                                                hafalan: s.currentHafalan,
+                                                target: s.targetJuz,
+                                                colorCategory: s.colorCategory,
+                                              })
+                                            )}
+                                            targetJuz={
+                                              selectedChartKelas.targetJuz
+                                            }
+                                          />
+                                        )}
+                                      </DialogContent>
+                                    </Dialog>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="rounded-lg bg-green-600 hover:bg-green-700"
+                                      onClick={() =>
+                                        handleDownloadPDF(kelasData)
+                                      }
+                                      disabled={isGeneratingPDF}
+                                    >
+                                      {isGeneratingPDF ? (
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4 mr-1" />
+                                      )}
+                                      PDF
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
 

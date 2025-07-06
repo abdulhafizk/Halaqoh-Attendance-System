@@ -1,23 +1,17 @@
-"use client";
+"use client"
 
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import type React from "react";
+import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
+import type React from "react"
 
 interface AnimatedButtonProps {
-  children: React.ReactNode;
-  className?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  variant?:
-    | "default"
-    | "destructive"
-    | "outline"
-    | "secondary"
-    | "ghost"
-    | "link";
-  size?: "default" | "sm" | "lg" | "icon";
-  type?: "button" | "submit" | "reset";
+  children: React.ReactNode
+  className?: string
+  onClick?: () => void
+  disabled?: boolean
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
+  size?: "default" | "sm" | "lg" | "icon"
+  type?: "button" | "submit" | "reset"
 }
 
 export function AnimatedButton({
@@ -46,5 +40,5 @@ export function AnimatedButton({
         {children}
       </Button>
     </motion.div>
-  );
+  )
 }

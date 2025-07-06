@@ -67,6 +67,15 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Load saved password from localStorage
+  useEffect(() => {
+    const savedPassword = localStorage.getItem("rememberedPassword");
+    if (savedPassword) {
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
+
   // Load login statistics
   useEffect(() => {
     const loadLoginStats = async () => {
@@ -299,7 +308,7 @@ export default function LoginPage() {
                         htmlFor="remember"
                         className="text-sm text-gray-600 cursor-pointer"
                       >
-                        Ingat email saya
+                        Ingat Saya
                       </Label>
                     </div>
 

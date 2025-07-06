@@ -44,7 +44,7 @@ interface UserData {
   id: string;
   username: string;
   email: string;
-  role: "admin" | "masul_tahfidz" | "tim_tahfidz";
+  role: "admin" | "masul_tahfidz" | "tim_tahfidz" | "pengampu";
   status: "active" | "inactive";
   createdAt: string;
   lastLogin?: string;

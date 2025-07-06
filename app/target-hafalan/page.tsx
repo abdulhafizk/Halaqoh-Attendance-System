@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 "use client";
 import { useState, useEffect } from "react";
 import {
@@ -18,6 +19,18 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+=======
+"use client"
+
+import { useState, useEffect } from "react"
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+>>>>>>> parent of 1c497a7 (set perminsion)
 import {
   Target,
   Settings,
@@ -30,6 +43,7 @@ import {
   Users,
   Loader2,
   AlertCircle,
+<<<<<<< HEAD
   Download,
   BarChart3,
 } from "lucide-react";
@@ -54,52 +68,64 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+=======
+} from "lucide-react"
+import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
+import { Navbar } from "@/components/navbar"
+import { supabase } from "@/lib/supabase"
+import { AnimatedCard } from "@/components/animated-card"
+import { AnimatedButton } from "@/components/animated-button"
+import { FadeIn } from "@/components/fade-in"
+import { motion } from "framer-motion"
+>>>>>>> parent of 1c497a7 (set perminsion)
 
 interface TargetHafalan {
-  id: string;
-  kelas: string;
-  target_juz: number;
-  merah_min: number;
-  merah_max: number;
-  kuning_min: number;
-  kuning_max: number;
-  hijau_min: number;
-  hijau_max: number;
-  biru_min: number;
-  biru_max: number;
-  pink_threshold: number;
-  created_at: string;
-  updated_at: string;
+  id: string
+  kelas: string
+  target_juz: number
+  merah_min: number
+  merah_max: number
+  kuning_min: number
+  kuning_max: number
+  hijau_min: number
+  hijau_max: number
+  biru_min: number
+  biru_max: number
+  pink_threshold: number
+  created_at: string
+  updated_at: string
 }
 
 interface SantriProgress {
-  santriId: string;
-  santriName: string;
-  kelas: string;
-  currentHafalan: number;
-  targetJuz: number;
-  colorCategory: string;
-  progressPercentage: number;
+  santriId: string
+  santriName: string
+  kelas: string
+  currentHafalan: number
+  targetJuz: number
+  colorCategory: string
+  progressPercentage: number
 }
 
 interface KelasProgress {
-  kelas: string;
-  targetJuz: number;
-  santriList: SantriProgress[];
+  kelas: string
+  targetJuz: number
+  santriList: SantriProgress[]
   summary: {
-    totalSantri: number;
-    averageHafalan: number;
+    totalSantri: number
+    averageHafalan: number
     colorDistribution: {
-      merah: number;
-      kuning: number;
-      hijau: number;
-      biru: number;
-      pink: number;
-    };
-  };
+      merah: number
+      kuning: number
+      hijau: number
+      biru: number
+      pink: number
+    }
+  }
 }
 
 export default function TargetHafalanPage() {
+<<<<<<< HEAD
   const { user, hasPermission, isLoading: authLoading } = useAuth();
   const [targetList, setTargetList] = useState<TargetHafalan[]>([]);
   const [availableKelas, setAvailableKelas] = useState<string[]>([]);
@@ -112,6 +138,16 @@ export default function TargetHafalanPage() {
     useState<KelasProgress | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
+=======
+  const { user, hasPermission, isLoading: authLoading } = useAuth()
+  const [targetList, setTargetList] = useState<TargetHafalan[]>([])
+  const [availableKelas, setAvailableKelas] = useState<string[]>([])
+  const [kelasProgress, setKelasProgress] = useState<KelasProgress[]>([])
+  const [selectedViewKelas, setSelectedViewKelas] = useState("all")
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingId, setEditingId] = useState("")
+  const [selectedKelas, setSelectedKelas] = useState("")
+>>>>>>> parent of 1c497a7 (set perminsion)
   const [formData, setFormData] = useState({
     target_juz: "",
     merah_min: "0",
@@ -123,121 +159,106 @@ export default function TargetHafalanPage() {
     biru_min: "11.5",
     biru_max: "20",
     pink_threshold: "30",
-  });
-  const [loading, setLoading] = useState(false);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  })
+  const [loading, setLoading] = useState(false)
+  const [dataLoading, setDataLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
   useEffect(() => {
     if (user && hasPermission("manage_users")) {
+<<<<<<< HEAD
       loadInitialData();
+=======
+      loadInitialData()
+>>>>>>> parent of 1c497a7 (set perminsion)
     }
-  }, [user, hasPermission]);
+  }, [user, hasPermission])
 
   const loadInitialData = async () => {
     try {
-      setDataLoading(true);
-      setError("");
+      setDataLoading(true)
+      setError("")
 
       // Load available classes and targets in parallel
       const [ustadzResult, targetResult] = await Promise.all([
         supabase.from("ustadz").select("halaqoh").order("halaqoh"),
         supabase.from("target_hafalan").select("*").order("kelas"),
-      ]);
+      ])
 
       if (ustadzResult.error) {
-        throw new Error(
-          "Gagal memuat data kelas: " + ustadzResult.error.message
-        );
+        throw new Error("Gagal memuat data kelas: " + ustadzResult.error.message)
       }
 
       if (targetResult.error) {
-        throw new Error(
-          "Gagal memuat data target: " + targetResult.error.message
-        );
+        throw new Error("Gagal memuat data target: " + targetResult.error.message)
       }
 
-      const kelasList =
-        [
-          ...new Set(ustadzResult.data?.map((u) => u.halaqoh).filter(Boolean)),
-        ] || [];
-      setAvailableKelas(kelasList);
-      setTargetList(targetResult.data || []);
+      const kelasList = [...new Set(ustadzResult.data?.map((u) => u.halaqoh).filter(Boolean))] || []
+      setAvailableKelas(kelasList)
+      setTargetList(targetResult.data || [])
 
       // Load progress data in background (non-blocking)
-      loadProgressDataAsync(targetResult.data || []);
+      loadProgressDataAsync(targetResult.data || [])
     } catch (error) {
-      console.error("Error loading initial data:", error);
-      setError(error instanceof Error ? error.message : "Gagal memuat data");
+      console.error("Error loading initial data:", error)
+      setError(error instanceof Error ? error.message : "Gagal memuat data")
     } finally {
-      setDataLoading(false);
+      setDataLoading(false)
     }
-  };
+  }
 
   const loadProgressDataAsync = async (targets: TargetHafalan[]) => {
     try {
       // This runs in background, doesn't block UI
-      const progressData = await calculateProgressData(targets);
-      setKelasProgress(progressData);
+      const progressData = await calculateProgressData(targets)
+      setKelasProgress(progressData)
     } catch (error) {
-      console.error("Error loading progress data:", error);
+      console.error("Error loading progress data:", error)
       // Don't show error to user, this is background operation
     }
-  };
+  }
 
-  const calculateProgressData = async (
-    targets: TargetHafalan[]
-  ): Promise<KelasProgress[]> => {
+  const calculateProgressData = async (targets: TargetHafalan[]): Promise<KelasProgress[]> => {
     // Get santri data with timeout
-    const santriPromise = supabase
-      .from("santri")
-      .select("id, name, halaqoh")
-      .order("name")
-      .limit(100); // Limit to prevent huge queries
+    const santriPromise = supabase.from("santri").select("id, name, halaqoh").order("name").limit(100) // Limit to prevent huge queries
 
     const memorizationPromise = supabase
       .from("memorization")
       .select("santri_id, ayah_to")
       .order("created_at", { ascending: false })
-      .limit(1000); // Limit recent records
+      .limit(1000) // Limit recent records
 
     const [santriResult, memorizationResult] = await Promise.race([
       Promise.all([santriPromise, memorizationPromise]),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout")), 5000)
-      ),
-    ]);
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000)),
+    ])
 
     if (santriResult.error || memorizationResult.error) {
-      throw new Error("Database query failed");
+      throw new Error("Database query failed")
     }
 
-    const santriData = santriResult.data || [];
-    const memorizationData = memorizationResult.data || [];
+    const santriData = santriResult.data || []
+    const memorizationData = memorizationResult.data || []
 
     // Get latest hafalan for each santri
-    const santriHafalanMap = new Map();
+    const santriHafalanMap = new Map()
     memorizationData.forEach((record) => {
-      const santriId = record.santri_id;
-      const currentHafalan = record.ayah_to / 10;
+      const santriId = record.santri_id
+      const currentHafalan = record.ayah_to / 10
 
-      if (
-        !santriHafalanMap.has(santriId) ||
-        santriHafalanMap.get(santriId) < currentHafalan
-      ) {
-        santriHafalanMap.set(santriId, currentHafalan);
+      if (!santriHafalanMap.has(santriId) || santriHafalanMap.get(santriId) < currentHafalan) {
+        santriHafalanMap.set(santriId, currentHafalan)
       }
-    });
+    })
 
     // Create progress data
     const santriProgressList: SantriProgress[] = santriData.map((santri) => {
-      const target = targets.find((t) => t.kelas === santri.halaqoh);
-      const currentHafalan = santriHafalanMap.get(santri.id) || 0;
-      const targetJuz = target?.target_juz || 0;
-      const colorCategory = getColorCategory(currentHafalan, target);
-      const progressPercentage =
-        targetJuz > 0 ? Math.round((currentHafalan / targetJuz) * 100) : 0;
+      const target = targets.find((t) => t.kelas === santri.halaqoh)
+      const currentHafalan = santriHafalanMap.get(santri.id) || 0
+      const targetJuz = target?.target_juz || 0
+      const colorCategory = getColorCategory(currentHafalan, target)
+      const progressPercentage = targetJuz > 0 ? Math.round((currentHafalan / targetJuz) * 100) : 0
 
       return {
         santriId: santri.id,
@@ -247,27 +268,24 @@ export default function TargetHafalanPage() {
         targetJuz,
         colorCategory,
         progressPercentage,
-      };
-    });
+      }
+    })
 
     // Group by kelas
-    const kelasMap = new Map<string, SantriProgress[]>();
+    const kelasMap = new Map<string, SantriProgress[]>()
     santriProgressList.forEach((santri) => {
       if (!kelasMap.has(santri.kelas)) {
-        kelasMap.set(santri.kelas, []);
+        kelasMap.set(santri.kelas, [])
       }
-      kelasMap.get(santri.kelas)!.push(santri);
-    });
+      kelasMap.get(santri.kelas)!.push(santri)
+    })
 
     // Calculate summary for each kelas
-    const progressData: KelasProgress[] = [];
+    const progressData: KelasProgress[] = []
     kelasMap.forEach((santriList, kelas) => {
-      const target = targets.find((t) => t.kelas === kelas);
+      const target = targets.find((t) => t.kelas === kelas)
       const averageHafalan =
-        santriList.length > 0
-          ? santriList.reduce((sum, s) => sum + s.currentHafalan, 0) /
-            santriList.length
-          : 0;
+        santriList.length > 0 ? santriList.reduce((sum, s) => sum + s.currentHafalan, 0) / santriList.length : 0
 
       const colorDistribution = {
         merah: santriList.filter((s) => s.colorCategory === "red").length,
@@ -275,86 +293,78 @@ export default function TargetHafalanPage() {
         hijau: santriList.filter((s) => s.colorCategory === "green").length,
         biru: santriList.filter((s) => s.colorCategory === "blue").length,
         pink: santriList.filter((s) => s.colorCategory === "pink").length,
-      };
+      }
 
       progressData.push({
         kelas,
         targetJuz: target?.target_juz || 0,
-        santriList: santriList
-          .sort((a, b) => b.currentHafalan - a.currentHafalan)
-          .slice(0, 20), // Limit display
+        santriList: santriList.sort((a, b) => b.currentHafalan - a.currentHafalan).slice(0, 20), // Limit display
         summary: {
           totalSantri: santriList.length,
           averageHafalan,
           colorDistribution,
         },
-      });
-    });
+      })
+    })
 
-    return progressData.sort((a, b) => a.kelas.localeCompare(b.kelas));
-  };
+    return progressData.sort((a, b) => a.kelas.localeCompare(b.kelas))
+  }
 
-  const getColorCategory = (
-    hafalan: number,
-    target?: TargetHafalan
-  ): string => {
-    if (!target) return "gray";
+  const getColorCategory = (hafalan: number, target?: TargetHafalan): string => {
+    if (!target) return "gray"
 
     // Pink: Hafal semua (30 Juz atau lebih)
-    if (hafalan >= target.pink_threshold) return "pink";
+    if (hafalan >= target.pink_threshold) return "pink"
 
     // Biru: Melampaui target (di atas hijau_max sampai biru_max)
-    if (hafalan > target.hijau_max && hafalan <= target.biru_max) return "blue";
+    if (hafalan > target.hijau_max && hafalan <= target.biru_max) return "blue"
 
     // Hijau: Mencapai target (hijau_min sampai hijau_max)
-    if (hafalan >= target.hijau_min && hafalan <= target.hijau_max)
-      return "green";
+    if (hafalan >= target.hijau_min && hafalan <= target.hijau_max) return "green"
 
     // Kuning: Mendekati target (kuning_min sampai kuning_max)
-    if (hafalan >= target.kuning_min && hafalan <= target.kuning_max)
-      return "yellow";
+    if (hafalan >= target.kuning_min && hafalan <= target.kuning_max) return "yellow"
 
     // Merah: Perlu peningkatan (merah_min sampai merah_max)
-    if (hafalan >= target.merah_min && hafalan <= target.merah_max)
-      return "red";
+    if (hafalan >= target.merah_min && hafalan <= target.merah_max) return "red"
 
     // Default: jika tidak masuk kategori manapun
-    return "gray";
-  };
+    return "gray"
+  }
 
   const getColorBadgeClass = (category: string): string => {
     switch (category) {
       case "pink":
-        return "bg-pink-100 text-pink-800 border-pink-200";
+        return "bg-pink-100 text-pink-800 border-pink-200"
       case "blue":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-100 text-blue-800 border-blue-200"
       case "green":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-green-100 text-green-800 border-green-200"
       case "yellow":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
       case "red":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-100 text-red-800 border-red-200"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
-  };
+  }
 
   const getColorDescription = (category: string): string => {
     switch (category) {
       case "pink":
-        return "Hafal Semua";
+        return "Hafal Semua"
       case "blue":
-        return "Melampaui Target";
+        return "Melampaui Target"
       case "green":
-        return "Mencapai Target";
+        return "Mencapai Target"
       case "yellow":
-        return "Mendekati Target";
+        return "Mendekati Target"
       case "red":
-        return "Perlu Peningkatan";
+        return "Perlu Peningkatan"
       default:
-        return "Belum Ada Target";
+        return "Belum Ada Target"
     }
-  };
+  }
 
   const handleDownloadPDF = async (kelasData: KelasProgress) => {
     try {
@@ -382,25 +392,25 @@ export default function TargetHafalanPage() {
 
   const handleSubmit = async () => {
     // clear previous messages
-    setError("");
-    setSuccess("");
+    setError("")
+    setSuccess("")
 
     /* ---------- VALIDATION ---------- */
     if (!selectedKelas?.trim()) {
-      setError("Pilih kelas terlebih dahulu!");
-      return;
+      setError("Pilih kelas terlebih dahulu!")
+      return
     }
     if (!formData.target_juz?.trim()) {
-      setError("Target hafalan wajib diisi!");
-      return;
+      setError("Target hafalan wajib diisi!")
+      return
     }
-    const targetJuz = Number.parseFloat(formData.target_juz);
+    const targetJuz = Number.parseFloat(formData.target_juz)
     if (isNaN(targetJuz) || targetJuz <= 0 || targetJuz > 30) {
-      setError("Target hafalan harus berupa angka antara 0.1 – 30!");
-      return;
+      setError("Target hafalan harus berupa angka antara 0.1 – 30!")
+      return
     }
 
-    setLoading(true);
+    setLoading(true)
 
     try {
       /* ---------- PREP DATA ---------- */
@@ -417,35 +427,29 @@ export default function TargetHafalanPage() {
         biru_max: Number.parseFloat(formData.biru_max) || 20,
         pink_threshold: Number.parseFloat(formData.pink_threshold) || 30,
         updated_at: new Date().toISOString(),
-      };
+      }
 
       /* ---------- UPSERT (INSERT OR UPDATE) ---------- */
-      const { error } = await supabase
-        .from("target_hafalan")
-        .upsert(targetData, {
-          onConflict: "kelas", // update baris berkelas sama
-          ignoreDuplicates: false, // overwrite jika ada
-        });
+      const { error } = await supabase.from("target_hafalan").upsert(targetData, {
+        onConflict: "kelas", // update baris berkelas sama
+        ignoreDuplicates: false, // overwrite jika ada
+      })
 
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message)
 
       /* ---------- SUCCESS ---------- */
-      setSuccess(
-        isEditing
-          ? "Target berhasil diperbarui!"
-          : "Target berhasil ditambahkan!"
-      );
-      resetForm();
+      setSuccess(isEditing ? "Target berhasil diperbarui!" : "Target berhasil ditambahkan!")
+      resetForm()
       // refresh list (tanpa delay besar)
-      loadInitialData();
+      loadInitialData()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Gagal menyimpan data";
-      setError(msg);
-      console.error("Save error:", err);
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan data"
+      setError(msg)
+      console.error("Save error:", err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const resetForm = () => {
     setFormData({
@@ -459,14 +463,14 @@ export default function TargetHafalanPage() {
       biru_min: "11.5",
       biru_max: "20",
       pink_threshold: "30",
-    });
-    setSelectedKelas("");
-    setIsEditing(false);
-    setEditingId("");
-  };
+    })
+    setSelectedKelas("")
+    setIsEditing(false)
+    setEditingId("")
+  }
 
   const handleEdit = (target: TargetHafalan) => {
-    setSelectedKelas(target.kelas);
+    setSelectedKelas(target.kelas)
     setFormData({
       target_juz: target.target_juz.toString(),
       merah_min: target.merah_min.toString(),
@@ -478,25 +482,25 @@ export default function TargetHafalanPage() {
       biru_min: target.biru_min.toString(),
       biru_max: target.biru_max.toString(),
       pink_threshold: target.pink_threshold.toString(),
-    });
-    setIsEditing(true);
-    setEditingId(target.id);
-    setError("");
-    setSuccess("");
-  };
+    })
+    setIsEditing(true)
+    setEditingId(target.id)
+    setError("")
+    setSuccess("")
+  }
 
   const handleCancel = () => {
-    resetForm();
-    setError("");
-    setSuccess("");
-  };
+    resetForm()
+    setError("")
+    setSuccess("")
+  }
 
   const getFilteredKelasProgress = () => {
     if (selectedViewKelas === "all") {
-      return kelasProgress;
+      return kelasProgress
     }
-    return kelasProgress.filter((kelas) => kelas.kelas === selectedViewKelas);
-  };
+    return kelasProgress.filter((kelas) => kelas.kelas === selectedViewKelas)
+  }
 
   const handleDownloadImage = async (
     kelasData: KelasProgress,
@@ -535,13 +539,11 @@ export default function TargetHafalanPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">
-            {authLoading ? "Memuat autentikasi..." : "Memuat data..."}
-          </p>
+          <p className="text-gray-600 font-medium">{authLoading ? "Memuat autentikasi..." : "Memuat data..."}</p>
           <p className="text-gray-500 text-sm mt-2">Mohon tunggu sebentar</p>
         </motion.div>
       </div>
-    );
+    )
   }
 
   if (!user || !hasPermission("manage_users")) {
@@ -551,15 +553,11 @@ export default function TargetHafalanPage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Target className="h-8 w-8 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-red-600 mb-2">
-            Akses Ditolak
-          </h1>
-          <p className="text-gray-600">
-            Anda tidak memiliki izin untuk mengakses halaman ini.
-          </p>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Akses Ditolak</h1>
+          <p className="text-gray-600">Anda tidak memiliki izin untuk mengakses halaman ini.</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -571,10 +569,7 @@ export default function TargetHafalanPage() {
           <FadeIn delay={0.1}>
             <div className="mb-8">
               <Link href="/">
-                <Button
-                  variant="ghost"
-                  className="mb-4 hover:bg-white/50 rounded-xl"
-                >
+                <Button variant="ghost" className="mb-4 hover:bg-white/50 rounded-xl">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Kembali ke Dashboard
                 </Button>
@@ -585,15 +580,12 @@ export default function TargetHafalanPage() {
                   Target Hafalan Kelas
                 </h1>
                 <p className="text-purple-100">
-                  Kelola target hafalan per kelas - semua santri dalam satu
-                  kelas memiliki target yang sama
+                  Kelola target hafalan per kelas - semua santri dalam satu kelas memiliki target yang sama
                 </p>
                 <div className="mt-4 p-4 bg-white/10 rounded-lg border border-white/20">
                   <p className="text-sm text-purple-100">
-                    💡 <strong>Cara Kerja:</strong> Target ditetapkan per kelas
-                    (misal: Kelas 7 target 10 Juz). Semua santri di kelas
-                    tersebut memiliki target yang sama, tapi progress individual
-                    berbeda-beda.
+                    💡 <strong>Cara Kerja:</strong> Target ditetapkan per kelas (misal: Kelas 7 target 10 Juz). Semua
+                    santri di kelas tersebut memiliki target yang sama, tapi progress individual berbeda-beda.
                   </p>
                 </div>
               </div>
@@ -609,43 +601,17 @@ export default function TargetHafalanPage() {
                   Kategori Warna Progress Santri
                 </CardTitle>
                 <CardDescription className="text-indigo-100">
-                  Sistem warna untuk menunjukkan progress setiap santri terhadap
-                  target kelasnya
+                  Sistem warna untuk menunjukkan progress setiap santri terhadap target kelasnya
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {[
-                    {
-                      color: "red",
-                      label: "🔴 Merah",
-                      desc: "Perlu Peningkatan",
-                      example: "Sesuai rentang merah",
-                    },
-                    {
-                      color: "yellow",
-                      label: "🟡 Kuning",
-                      desc: "Mendekati Target",
-                      example: "Sesuai rentang kuning",
-                    },
-                    {
-                      color: "green",
-                      label: "🟢 Hijau",
-                      desc: "Mencapai Target",
-                      example: "Sesuai rentang hijau",
-                    },
-                    {
-                      color: "blue",
-                      label: "🔵 Biru",
-                      desc: "Melampaui Target",
-                      example: "Di atas target hijau",
-                    },
-                    {
-                      color: "pink",
-                      label: "🩷 Pink",
-                      desc: "Hafal Semua",
-                      example: "30 Juz lengkap",
-                    },
+                    { color: "red", label: "🔴 Merah", desc: "Perlu Peningkatan", example: "Sesuai rentang merah" },
+                    { color: "yellow", label: "🟡 Kuning", desc: "Mendekati Target", example: "Sesuai rentang kuning" },
+                    { color: "green", label: "🟢 Hijau", desc: "Mencapai Target", example: "Sesuai rentang hijau" },
+                    { color: "blue", label: "🔵 Biru", desc: "Melampaui Target", example: "Di atas target hijau" },
+                    { color: "pink", label: "🩷 Pink", desc: "Hafal Semua", example: "30 Juz lengkap" },
                   ].map((item, index) => (
                     <motion.div
                       key={item.color}
@@ -654,19 +620,11 @@ export default function TargetHafalanPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 + index * 0.1 }}
                     >
-                      <Badge
-                        className={`${getColorBadgeClass(
-                          item.color
-                        )} mb-2 text-sm px-3 py-1 border`}
-                      >
+                      <Badge className={`${getColorBadgeClass(item.color)} mb-2 text-sm px-3 py-1 border`}>
                         {item.label}
                       </Badge>
-                      <p className="text-xs text-gray-600 font-medium">
-                        {item.desc}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {item.example}
-                      </p>
+                      <p className="text-xs text-gray-600 font-medium">{item.desc}</p>
+                      <p className="text-xs text-gray-500 mt-1">{item.example}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -699,24 +657,15 @@ export default function TargetHafalanPage() {
 
                   {success && (
                     <Alert className="border-green-200 bg-green-50">
-                      <AlertDescription className="text-green-700">
-                        {success}
-                      </AlertDescription>
+                      <AlertDescription className="text-green-700">{success}</AlertDescription>
                     </Alert>
                   )}
 
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="kelas"
-                      className="text-sm font-semibold text-gray-700"
-                    >
+                    <Label htmlFor="kelas" className="text-sm font-semibold text-gray-700">
                       Pilih Kelas *
                     </Label>
-                    <Select
-                      value={selectedKelas}
-                      onValueChange={setSelectedKelas}
-                      disabled={isEditing || loading}
-                    >
+                    <Select value={selectedKelas} onValueChange={setSelectedKelas} disabled={isEditing || loading}>
                       <SelectTrigger className="h-12 border-gray-200 focus:border-purple-500 focus:ring-purple-500">
                         <SelectValue placeholder="Pilih Kelas" />
                       </SelectTrigger>
@@ -729,16 +678,12 @@ export default function TargetHafalanPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      Target ini akan berlaku untuk{" "}
-                      <strong>semua santri</strong> di kelas yang dipilih
+                      Target ini akan berlaku untuk <strong>semua santri</strong> di kelas yang dipilih
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="target_juz"
-                      className="text-sm font-semibold text-gray-700"
-                    >
+                    <Label htmlFor="target_juz" className="text-sm font-semibold text-gray-700">
                       Target Hafalan Kelas (Juz) *
                     </Label>
                     <Input
@@ -748,29 +693,19 @@ export default function TargetHafalanPage() {
                       max="30"
                       placeholder="Contoh: 10.0"
                       value={formData.target_juz}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          target_juz: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => setFormData((prev) => ({ ...prev, target_juz: e.target.value }))}
                       className="h-12 border-gray-200 focus:border-purple-500 focus:ring-purple-500"
                       disabled={loading}
                     />
-                    <p className="text-xs text-gray-500">
-                      Semua santri di kelas ini akan memiliki target yang sama
-                    </p>
+                    <p className="text-xs text-gray-500">Semua santri di kelas ini akan memiliki target yang sama</p>
                   </div>
 
                   {/* Simplified Color Range Settings */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Pengaturan Kategori Warna
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Pengaturan Kategori Warna</h3>
                     <p className="text-sm text-gray-600">
-                      Santri akan dikategorikan berdasarkan hafalan mereka:
-                      Merah (0-max), Kuning (min-max), Hijau (min-max untuk
-                      target), Biru (di atas hijau), Pink (hafal semua)
+                      Santri akan dikategorikan berdasarkan hafalan mereka: Merah (0-max), Kuning (min-max), Hijau
+                      (min-max untuk target), Biru (di atas hijau), Pink (hafal semua)
                     </p>
 
                     {/* Quick preset buttons */}
@@ -792,7 +727,7 @@ export default function TargetHafalanPage() {
                             biru_min: "11.5",
                             biru_max: "20",
                             pink_threshold: "30",
-                          }));
+                          }))
                         }}
                       >
                         Preset Default
@@ -803,8 +738,7 @@ export default function TargetHafalanPage() {
                         size="sm"
                         disabled={loading || !formData.target_juz}
                         onClick={() => {
-                          const target =
-                            Number.parseFloat(formData.target_juz) || 10;
+                          const target = Number.parseFloat(formData.target_juz) || 10
                           setFormData((prev) => ({
                             ...prev,
                             merah_min: "0",
@@ -816,7 +750,7 @@ export default function TargetHafalanPage() {
                             biru_min: (target * 1.2 + 0.1).toFixed(1),
                             biru_max: "25",
                             pink_threshold: "30",
-                          }));
+                          }))
                         }}
                       >
                         Auto dari Target
@@ -827,121 +761,73 @@ export default function TargetHafalanPage() {
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-sm text-red-700 font-medium">
-                            🔴 Merah (Maksimal)
-                          </Label>
+                          <Label className="text-sm text-red-700 font-medium">🔴 Merah (Maksimal)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={formData.merah_max}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                merah_max: e.target.value,
-                              }))
-                            }
+                            onChange={(e) => setFormData((prev) => ({ ...prev, merah_max: e.target.value }))}
                             className="border-red-200 focus:border-red-500"
                             disabled={loading}
                           />
-                          <p className="text-xs text-red-600">
-                            0 - {formData.merah_max} Juz
-                          </p>
+                          <p className="text-xs text-red-600">0 - {formData.merah_max} Juz</p>
                         </div>
                         <div>
-                          <Label className="text-sm text-yellow-700 font-medium">
-                            🟡 Kuning (Maksimal)
-                          </Label>
+                          <Label className="text-sm text-yellow-700 font-medium">🟡 Kuning (Maksimal)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={formData.kuning_max}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                kuning_max: e.target.value,
-                              }))
-                            }
+                            onChange={(e) => setFormData((prev) => ({ ...prev, kuning_max: e.target.value }))}
                             className="border-yellow-200 focus:border-yellow-500"
                             disabled={loading}
                           />
                           <p className="text-xs text-yellow-600">
-                            {(
-                              Number.parseFloat(formData.merah_max) + 0.1
-                            ).toFixed(1)}{" "}
-                            - {formData.kuning_max} Juz
+                            {(Number.parseFloat(formData.merah_max) + 0.1).toFixed(1)} - {formData.kuning_max} Juz
                           </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-sm text-green-700 font-medium">
-                            🟢 Hijau (Maksimal)
-                          </Label>
+                          <Label className="text-sm text-green-700 font-medium">🟢 Hijau (Maksimal)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={formData.hijau_max}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                hijau_max: e.target.value,
-                              }))
-                            }
+                            onChange={(e) => setFormData((prev) => ({ ...prev, hijau_max: e.target.value }))}
                             className="border-green-200 focus:border-green-500"
                             disabled={loading}
                           />
                           <p className="text-xs text-green-600">
-                            {(
-                              Number.parseFloat(formData.kuning_max) + 0.1
-                            ).toFixed(1)}{" "}
-                            - {formData.hijau_max} Juz
+                            {(Number.parseFloat(formData.kuning_max) + 0.1).toFixed(1)} - {formData.hijau_max} Juz
                           </p>
                         </div>
                         <div>
-                          <Label className="text-sm text-blue-700 font-medium">
-                            🔵 Biru (Maksimal)
-                          </Label>
+                          <Label className="text-sm text-blue-700 font-medium">🔵 Biru (Maksimal)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={formData.biru_max}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                biru_max: e.target.value,
-                              }))
-                            }
+                            onChange={(e) => setFormData((prev) => ({ ...prev, biru_max: e.target.value }))}
                             className="border-blue-200 focus:border-blue-500"
                             disabled={loading}
                           />
                           <p className="text-xs text-blue-600">
-                            {(
-                              Number.parseFloat(formData.hijau_max) + 0.1
-                            ).toFixed(1)}{" "}
-                            - {formData.biru_max} Juz
+                            {(Number.parseFloat(formData.hijau_max) + 0.1).toFixed(1)} - {formData.biru_max} Juz
                           </p>
                         </div>
                       </div>
                       <div>
-                        <Label className="text-sm text-pink-700 font-medium">
-                          🩷 Pink (Minimal untuk Hafal Semua)
-                        </Label>
+                        <Label className="text-sm text-pink-700 font-medium">🩷 Pink (Minimal untuk Hafal Semua)</Label>
                         <Input
                           type="number"
                           step="0.1"
                           value={formData.pink_threshold}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              pink_threshold: e.target.value,
-                            }))
-                          }
+                          onChange={(e) => setFormData((prev) => ({ ...prev, pink_threshold: e.target.value }))}
                           className="border-pink-200 focus:border-pink-500"
                           disabled={loading}
                         />
-                        <p className="text-xs text-pink-600">
-                          {formData.pink_threshold}+ Juz (Biasanya 30 Juz)
-                        </p>
+                        <p className="text-xs text-pink-600">{formData.pink_threshold}+ Juz (Biasanya 30 Juz)</p>
                       </div>
                     </div>
                   </div>
@@ -950,9 +836,7 @@ export default function TargetHafalanPage() {
                     <AnimatedButton
                       onClick={handleSubmit}
                       className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={
-                        loading || !selectedKelas || !formData.target_juz
-                      }
+                      disabled={loading || !selectedKelas || !formData.target_juz}
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">
@@ -997,13 +881,8 @@ export default function TargetHafalanPage() {
                   <CardContent className="p-6">
                     {/* Filter Kelas */}
                     <div className="mb-6">
-                      <Label className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Filter Kelas
-                      </Label>
-                      <Select
-                        value={selectedViewKelas}
-                        onValueChange={setSelectedViewKelas}
-                      >
+                      <Label className="text-sm font-semibold text-gray-700 mb-2 block">Filter Kelas</Label>
+                      <Select value={selectedViewKelas} onValueChange={setSelectedViewKelas}>
                         <SelectTrigger className="w-64 h-10 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
                           <SelectValue />
                         </SelectTrigger>
@@ -1022,14 +901,13 @@ export default function TargetHafalanPage() {
                       {getFilteredKelasProgress().length === 0 ? (
                         <div className="text-center py-8">
                           <Target className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                          <p className="text-gray-500">
-                            Belum ada data progress santri
-                          </p>
+                          <p className="text-gray-500">Belum ada data progress santri</p>
                           <p className="text-xs text-gray-400 mt-2">
                             Tambahkan target kelas untuk melihat progress santri
                           </p>
                         </div>
                       ) : (
+<<<<<<< HEAD
                         getFilteredKelasProgress().map(
                           (kelasData, kelasIndex) => (
                             <motion.div
@@ -1173,136 +1051,108 @@ export default function TargetHafalanPage() {
                                       PDF
                                     </Button>
                                   </div>
+=======
+                        getFilteredKelasProgress().map((kelasData, kelasIndex) => (
+                          <motion.div
+                            key={kelasData.kelas}
+                            className="border rounded-xl p-6 bg-white shadow-sm"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + kelasIndex * 0.1 }}
+                          >
+                            {/* Kelas Header */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <Users className="h-6 w-6 text-indigo-600" />
+                                <div>
+                                  <h3 className="text-xl font-bold text-gray-900">{kelasData.kelas}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    Target Kelas: <strong>{kelasData.targetJuz} Juz</strong> untuk semua santri
+                                  </p>
+>>>>>>> parent of 1c497a7 (set perminsion)
                                 </div>
                               </div>
+                              <div className="text-right">
+                                <Badge className="bg-purple-100 text-purple-800 mb-1">
+                                  {kelasData.summary.totalSantri} Santri
+                                </Badge>
+                                <p className="text-xs text-gray-600">
+                                  Rata-rata: {kelasData.summary.averageHafalan.toFixed(1)} Juz
+                                </p>
+                              </div>
+                            </div>
 
-                              {/* Color Distribution Summary */}
-                              <div className="grid grid-cols-5 gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                                {[
-                                  {
-                                    color: "red",
-                                    count:
-                                      kelasData.summary.colorDistribution.merah,
-                                    label: "🔴",
-                                  },
-                                  {
-                                    color: "yellow",
-                                    count:
-                                      kelasData.summary.colorDistribution
-                                        .kuning,
-                                    label: "🟡",
-                                  },
-                                  {
-                                    color: "green",
-                                    count:
-                                      kelasData.summary.colorDistribution.hijau,
-                                    label: "🟢",
-                                  },
-                                  {
-                                    color: "blue",
-                                    count:
-                                      kelasData.summary.colorDistribution.biru,
-                                    label: "🔵",
-                                  },
-                                  {
-                                    color: "pink",
-                                    count:
-                                      kelasData.summary.colorDistribution.pink,
-                                    label: "🩷",
-                                  },
-                                ].map((item) => (
-                                  <div key={item.color} className="text-center">
-                                    <div className="text-lg font-bold text-gray-900">
-                                      {item.count}
+                            {/* Color Distribution Summary */}
+                            <div className="grid grid-cols-5 gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                              {[
+                                { color: "red", count: kelasData.summary.colorDistribution.merah, label: "🔴" },
+                                { color: "yellow", count: kelasData.summary.colorDistribution.kuning, label: "🟡" },
+                                { color: "green", count: kelasData.summary.colorDistribution.hijau, label: "🟢" },
+                                { color: "blue", count: kelasData.summary.colorDistribution.biru, label: "🔵" },
+                                { color: "pink", count: kelasData.summary.colorDistribution.pink, label: "🩷" },
+                              ].map((item) => (
+                                <div key={item.color} className="text-center">
+                                  <div className="text-lg font-bold text-gray-900">{item.count}</div>
+                                  <div className="text-xs text-gray-600">{item.label}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Santri List */}
+                            <div className="space-y-2">
+                              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                Progress Individual Santri (Top 20):
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                                {kelasData.santriList.map((santri, santriIndex) => (
+                                  <motion.div
+                                    key={santri.santriId}
+                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border"
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    transition={{ delay: 0.6 + kelasIndex * 0.1 + santriIndex * 0.02 }}
+                                  >
+                                    <div className="flex-1">
+                                      <p className="font-medium text-gray-900 text-sm">{santri.santriName}</p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <p className="text-xs text-gray-600">
+                                          <strong>{santri.currentHafalan}</strong> / {santri.targetJuz} Juz
+                                        </p>
+                                        <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                                          <div
+                                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                                              santri.colorCategory === "red"
+                                                ? "bg-red-500"
+                                                : santri.colorCategory === "yellow"
+                                                  ? "bg-yellow-500"
+                                                  : santri.colorCategory === "green"
+                                                    ? "bg-green-500"
+                                                    : santri.colorCategory === "blue"
+                                                      ? "bg-blue-500"
+                                                      : santri.colorCategory === "pink"
+                                                        ? "bg-pink-500"
+                                                        : "bg-gray-400"
+                                            }`}
+                                            style={{ width: `${Math.min(santri.progressPercentage, 100)}%` }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-700">
+                                          {santri.progressPercentage}%
+                                        </span>
+                                      </div>
                                     </div>
-                                    <div className="text-xs text-gray-600">
-                                      {item.label}
-                                    </div>
-                                  </div>
+                                    <Badge
+                                      className={`${getColorBadgeClass(santri.colorCategory)} text-xs border ml-2`}
+                                    >
+                                      {getColorDescription(santri.colorCategory)}
+                                    </Badge>
+                                  </motion.div>
                                 ))}
                               </div>
-
-                              {/* Santri List */}
-                              <div className="space-y-2">
-                                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                  <User className="h-4 w-4" />
-                                  Progress Individual Santri (Top 20):
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
-                                  {kelasData.santriList.map(
-                                    (santri, santriIndex) => (
-                                      <motion.div
-                                        key={santri.santriId}
-                                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border"
-                                        initial={{ x: -20, opacity: 0 }}
-                                        animate={{ x: 0, opacity: 1 }}
-                                        transition={{
-                                          delay:
-                                            0.6 +
-                                            kelasIndex * 0.1 +
-                                            santriIndex * 0.02,
-                                        }}
-                                      >
-                                        <div className="flex-1">
-                                          <p className="font-medium text-gray-900 text-sm">
-                                            {santri.santriName}
-                                          </p>
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <p className="text-xs text-gray-600">
-                                              <strong>
-                                                {santri.currentHafalan}
-                                              </strong>{" "}
-                                              / {santri.targetJuz} Juz
-                                            </p>
-                                            <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                                              <div
-                                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                                  santri.colorCategory === "red"
-                                                    ? "bg-red-500"
-                                                    : santri.colorCategory ===
-                                                      "yellow"
-                                                    ? "bg-yellow-500"
-                                                    : santri.colorCategory ===
-                                                      "green"
-                                                    ? "bg-green-500"
-                                                    : santri.colorCategory ===
-                                                      "blue"
-                                                    ? "bg-blue-500"
-                                                    : santri.colorCategory ===
-                                                      "pink"
-                                                    ? "bg-pink-500"
-                                                    : "bg-gray-400"
-                                                }`}
-                                                style={{
-                                                  width: `${Math.min(
-                                                    santri.progressPercentage,
-                                                    100
-                                                  )}%`,
-                                                }}
-                                              ></div>
-                                            </div>
-                                            <span className="text-xs font-medium text-gray-700">
-                                              {santri.progressPercentage}%
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <Badge
-                                          className={`${getColorBadgeClass(
-                                            santri.colorCategory
-                                          )} text-xs border ml-2`}
-                                        >
-                                          {getColorDescription(
-                                            santri.colorCategory
-                                          )}
-                                        </Badge>
-                                      </motion.div>
-                                    )
-                                  )}
-                                </div>
-                              </div>
-                            </motion.div>
-                          )
-                        )
+                            </div>
+                          </motion.div>
+                        ))
                       )}
                     </div>
                   </CardContent>
@@ -1328,9 +1178,7 @@ export default function TargetHafalanPage() {
                   {targetList.length === 0 ? (
                     <div className="text-center py-8">
                       <Target className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500">
-                        Belum ada target yang ditetapkan
-                      </p>
+                      <p className="text-gray-500">Belum ada target yang ditetapkan</p>
                       <p className="text-xs text-gray-400 mt-2">
                         Tambahkan target untuk mulai memantau progress santri
                       </p>
@@ -1348,12 +1196,8 @@ export default function TargetHafalanPage() {
                           <div className="flex items-center gap-3">
                             <Users className="h-6 w-6 text-green-600" />
                             <div>
-                              <h3 className="text-xl font-bold text-gray-900">
-                                {target.kelas}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                Target untuk semua santri di kelas ini
-                              </p>
+                              <h3 className="text-xl font-bold text-gray-900">{target.kelas}</h3>
+                              <p className="text-sm text-gray-600">Target untuk semua santri di kelas ini</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
@@ -1375,69 +1219,37 @@ export default function TargetHafalanPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                           <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                            <p className="text-xs font-medium text-red-700 mb-1">
-                              🔴 Merah
-                            </p>
-                            <p className="text-sm text-red-800 font-medium">
-                              0 - {target.merah_max} Juz
-                            </p>
-                            <p className="text-xs text-red-600">
-                              Perlu Peningkatan
-                            </p>
+                            <p className="text-xs font-medium text-red-700 mb-1">🔴 Merah</p>
+                            <p className="text-sm text-red-800 font-medium">0 - {target.merah_max} Juz</p>
+                            <p className="text-xs text-red-600">Perlu Peningkatan</p>
                           </div>
                           <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                            <p className="text-xs font-medium text-yellow-700 mb-1">
-                              🟡 Kuning
-                            </p>
+                            <p className="text-xs font-medium text-yellow-700 mb-1">🟡 Kuning</p>
                             <p className="text-sm text-yellow-800 font-medium">
-                              {(
-                                Number.parseFloat(target.merah_max.toString()) +
-                                0.1
-                              ).toFixed(1)}{" "}
-                              - {target.kuning_max} Juz
+                              {(Number.parseFloat(target.merah_max.toString()) + 0.1).toFixed(1)} - {target.kuning_max}{" "}
+                              Juz
                             </p>
-                            <p className="text-xs text-yellow-600">
-                              Mendekati Target
-                            </p>
+                            <p className="text-xs text-yellow-600">Mendekati Target</p>
                           </div>
                           <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                            <p className="text-xs font-medium text-green-700 mb-1">
-                              🟢 Hijau
-                            </p>
+                            <p className="text-xs font-medium text-green-700 mb-1">🟢 Hijau</p>
                             <p className="text-sm text-green-800 font-medium">
-                              {(
-                                Number.parseFloat(
-                                  target.kuning_max.toString()
-                                ) + 0.1
-                              ).toFixed(1)}{" "}
-                              - {target.hijau_max} Juz
+                              {(Number.parseFloat(target.kuning_max.toString()) + 0.1).toFixed(1)} - {target.hijau_max}{" "}
+                              Juz
                             </p>
-                            <p className="text-xs text-green-600">
-                              Mencapai Target
-                            </p>
+                            <p className="text-xs text-green-600">Mencapai Target</p>
                           </div>
                           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <p className="text-xs font-medium text-blue-700 mb-1">
-                              🔵 Biru
-                            </p>
+                            <p className="text-xs font-medium text-blue-700 mb-1">🔵 Biru</p>
                             <p className="text-sm text-blue-800 font-medium">
-                              {(
-                                Number.parseFloat(target.hijau_max.toString()) +
-                                0.1
-                              ).toFixed(1)}{" "}
-                              - {target.biru_max} Juz
+                              {(Number.parseFloat(target.hijau_max.toString()) + 0.1).toFixed(1)} - {target.biru_max}{" "}
+                              Juz
                             </p>
-                            <p className="text-xs text-blue-600">
-                              Melampaui Target
-                            </p>
+                            <p className="text-xs text-blue-600">Melampaui Target</p>
                           </div>
                           <div className="p-3 bg-pink-50 rounded-lg border border-pink-200">
-                            <p className="text-xs font-medium text-pink-700 mb-1">
-                              🩷 Pink
-                            </p>
-                            <p className="text-sm text-pink-800 font-medium">
-                              {target.pink_threshold}+ Juz
-                            </p>
+                            <p className="text-xs font-medium text-pink-700 mb-1">🩷 Pink</p>
+                            <p className="text-sm text-pink-800 font-medium">{target.pink_threshold}+ Juz</p>
                             <p className="text-xs text-pink-600">Hafal Semua</p>
                           </div>
                         </div>
@@ -1451,5 +1263,5 @@ export default function TargetHafalanPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,22 +1,27 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import type React from "react"
+import { motion } from "framer-motion";
+import type React from "react";
 
 interface FadeInProps {
-  children: React.ReactNode
-  delay?: number
-  direction?: "up" | "down" | "left" | "right"
-  className?: string
+  children: React.ReactNode;
+  delay?: number;
+  direction?: "up" | "down" | "left" | "right";
+  className?: string;
 }
 
-export function FadeIn({ children, delay = 0, direction = "up", className = "" }: FadeInProps) {
+export function FadeIn({
+  children,
+  delay = 0,
+  direction = "up",
+  className = "",
+}: FadeInProps) {
   const directions = {
     up: { y: 20 },
     down: { y: -20 },
     left: { x: 20 },
     right: { x: -20 },
-  }
+  };
 
   return (
     <motion.div
@@ -27,5 +32,5 @@ export function FadeIn({ children, delay = 0, direction = "up", className = "" }
     >
       {children}
     </motion.div>
-  )
+  );
 }

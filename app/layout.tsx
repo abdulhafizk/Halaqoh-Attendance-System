@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Sistem Tahfidz PP Hubbul Khoir",
 
   description: "Aplikasi untuk mengelola absensi Ustadz dan hafalan santri",
-    generator: 'v0.dev'
+  generator: "v0.dev",
 };
 
 export default function RootLayout({

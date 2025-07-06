@@ -1,24 +1,36 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { BookOpen, Plus, Edit, Trash2, ArrowLeft, Upload } from "lucide-react"
-import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
-import { Navbar } from "@/components/navbar"
-import { supabase, type Santri, type Ustadz } from "@/lib/supabase-client"
+import { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { BookOpen, Plus, Edit, Trash2, ArrowLeft, Upload } from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { Navbar } from "@/components/navbar";
+import { supabase, type Santri, type Ustadz } from "@/lib/supabase-client";
 
 export default function SantriPage() {
-  const { user, hasPermission, isLoading } = useAuth()
-  const [santriList, setSantriList] = useState<Santri[]>([])
-  const [ustadzList, setUstadzList] = useState<Ustadz[]>([])
-  const [isEditing, setIsEditing] = useState(false)
-  const [editingId, setEditingId] = useState("")
+  const { user, hasPermission, isLoading } = useAuth();
+  const [santriList, setSantriList] = useState<Santri[]>([]);
+  const [ustadzList, setUstadzList] = useState<Ustadz[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     halaqoh: "",
@@ -26,32 +38,38 @@ export default function SantriPage() {
     parentName: "",
     phone: "",
     address: "",
-  })
-  const [dataLoaded, setDataLoaded] = useState(false)
-  const [loading, setLoading] = useState(false)
+  });
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [importing, setImporting] = useState(false)
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const { data: santriData } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
-        const { data: ustadzData } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
+        const { data: santriData } = await supabase
+          .from("santri")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const { data: ustadzData } = await supabase
+          .from("ustadz")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-        setSantriList(santriData || [])
-        setUstadzList(ustadzData || [])
+        setSantriList(santriData || []);
+        setUstadzList(ustadzData || []);
       } catch (error) {
-        console.error("Error loading data:", error)
+        console.error("Error loading data:", error);
       }
-      setDataLoaded(true)
-    }
+      setDataLoaded(true);
+    };
 
     if (user) {
-      loadData()
+      loadData();
     }
-  }, [user])
+  }, [user]);
 
   // Real-time subscriptions
   useEffect(() => {
@@ -65,11 +83,11 @@ export default function SantriPage() {
           table: "santri",
         },
         (payload) => {
-          console.log("Real-time santri update:", payload.eventType)
-          loadSantriData()
-        },
+          console.log("Real-time santri update:", payload.eventType);
+          loadSantriData();
+        }
       )
-      .subscribe()
+      .subscribe();
 
     const ustadzChannel = supabase
       .channel("ustadz_realtime_santri")
@@ -81,62 +99,72 @@ export default function SantriPage() {
           table: "ustadz",
         },
         (payload) => {
-          console.log("Real-time ustadz update for santri:", payload.eventType)
-          loadUstadzData()
-        },
+          console.log("Real-time ustadz update for santri:", payload.eventType);
+          loadUstadzData();
+        }
       )
-      .subscribe()
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(santriChannel)
-      supabase.removeChannel(ustadzChannel)
-    }
-  }, [])
+      supabase.removeChannel(santriChannel);
+      supabase.removeChannel(ustadzChannel);
+    };
+  }, []);
 
   const loadSantriData = async () => {
     try {
-      const { data } = await supabase.from("santri").select("*").order("created_at", { ascending: false })
-      setSantriList(data || [])
+      const { data } = await supabase
+        .from("santri")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setSantriList(data || []);
     } catch (error) {
-      console.error("Error loading santri:", error)
+      console.error("Error loading santri:", error);
     }
-  }
+  };
 
   const loadUstadzData = async () => {
     try {
-      const { data } = await supabase.from("ustadz").select("*").order("created_at", { ascending: false })
-      setUstadzList(data || [])
+      const { data } = await supabase
+        .from("ustadz")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setUstadzList(data || []);
     } catch (error) {
-      console.error("Error loading ustadz:", error)
+      console.error("Error loading ustadz:", error);
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
       </div>
-    )
+    );
   }
 
   if (!user || !hasPermission("manage_santri")) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Akses Ditolak</h1>
-          <p className="text-gray-600">Anda tidak memiliki izin untuk mengakses halaman ini.</p>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">
+            Akses Ditolak
+          </h1>
+          <p className="text-gray-600">
+            Anda tidak memiliki izin untuk mengakses halaman ini.
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.halaqoh) {
-      alert("Nama dan Kelas wajib diisi!")
-      return
+      alert("Nama dan Kelas wajib diisi!");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       if (isEditing) {
@@ -151,9 +179,9 @@ export default function SantriPage() {
             address: formData.address,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", editingId)
+          .eq("id", editingId);
 
-        if (error) throw error
+        if (error) throw error;
       } else {
         const { error } = await supabase.from("santri").insert([
           {
@@ -164,24 +192,35 @@ export default function SantriPage() {
             phone: formData.phone,
             address: formData.address,
           },
-        ])
+        ]);
 
-        if (error) throw error
+        if (error) throw error;
       }
 
       // Reset form
-      setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
-      setIsEditing(false)
-      setEditingId("")
+      setFormData({
+        name: "",
+        halaqoh: "",
+        age: "",
+        parentName: "",
+        phone: "",
+        address: "",
+      });
+      setIsEditing(false);
+      setEditingId("");
 
-      alert(isEditing ? "Data Santri berhasil diperbarui!" : "Santri baru berhasil ditambahkan!")
+      alert(
+        isEditing
+          ? "Data Santri berhasil diperbarui!"
+          : "Santri baru berhasil ditambahkan!"
+      );
     } catch (error) {
-      console.error("Error:", error)
-      alert("Terjadi kesalahan saat menyimpan data")
+      console.error("Error:", error);
+      alert("Terjadi kesalahan saat menyimpan data");
     }
 
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   const handleEdit = (santri: Santri) => {
     setFormData({
@@ -191,88 +230,109 @@ export default function SantriPage() {
       parentName: santri.parent_name || "",
       phone: santri.phone || "",
       address: santri.address || "",
-    })
-    setIsEditing(true)
-    setEditingId(santri.id)
-  }
+    });
+    setIsEditing(true);
+    setEditingId(santri.id);
+  };
 
   const handleDelete = async (id: string) => {
     // ask for confirmation
     if (
-      !confirm("Apakah Anda yakin ingin menghapus data Santri ini? Semua data hafalan yang terkait juga akan dihapus.")
+      !confirm(
+        "Apakah Anda yakin ingin menghapus data Santri ini? Semua data hafalan yang terkait juga akan dihapus."
+      )
     ) {
-      return
+      return;
     }
 
     try {
       // 1) delete all memorization rows first
-      const { error: memError } = await supabase.from("memorization").delete().eq("santri_id", id)
+      const { error: memError } = await supabase
+        .from("memorization")
+        .delete()
+        .eq("santri_id", id);
 
       if (memError) {
-        console.error("Error deleting memorization:", memError)
-        alert("Gagal menghapus data hafalan: " + memError.message)
-        return
+        console.error("Error deleting memorization:", memError);
+        alert("Gagal menghapus data hafalan: " + memError.message);
+        return;
       }
 
       // 2) delete the santri record
-      const { error: santriError } = await supabase.from("santri").delete().eq("id", id)
+      const { error: santriError } = await supabase
+        .from("santri")
+        .delete()
+        .eq("id", id);
 
       if (santriError) {
-        console.error("Error deleting santri:", santriError)
-        alert("Gagal menghapus data santri: " + santriError.message)
-        return
+        console.error("Error deleting santri:", santriError);
+        alert("Gagal menghapus data santri: " + santriError.message);
+        return;
       }
 
-      alert("Data Santri dan hafalan terkait berhasil dihapus!")
+      alert("Data Santri dan hafalan terkait berhasil dihapus!");
     } catch (err) {
-      console.error("Unexpected error deleting santri:", err)
-      alert("Terjadi kesalahan")
+      console.error("Unexpected error deleting santri:", err);
+      alert("Terjadi kesalahan");
     }
-  }
+  };
 
   const handleCancel = () => {
-    setFormData({ name: "", halaqoh: "", age: "", parentName: "", phone: "", address: "" })
-    setIsEditing(false)
-    setEditingId("")
-  }
+    setFormData({
+      name: "",
+      halaqoh: "",
+      age: "",
+      parentName: "",
+      phone: "",
+      address: "",
+    });
+    setIsEditing(false);
+    setEditingId("");
+  };
 
   const handleImport = async () => {
     if (!importFile) {
-      alert("Silakan pilih file CSV terlebih dahulu!")
-      return
+      alert("Silakan pilih file CSV terlebih dahulu!");
+      return;
     }
 
-    setImporting(true)
+    setImporting(true);
 
     try {
-      const text = await importFile.text()
-      const lines = text.split("\n").filter((line) => line.trim())
+      const text = await importFile.text();
+      const lines = text.split("\n").filter((line) => line.trim());
 
       if (lines.length < 2) {
-        alert("File CSV harus memiliki header dan minimal 1 data!")
-        return
+        alert("File CSV harus memiliki header dan minimal 1 data!");
+        return;
       }
 
       // Parse CSV
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-      const requiredHeaders = ["nama", "kelas"]
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const requiredHeaders = ["nama", "kelas"];
 
-      const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h))
+      const missingHeaders = requiredHeaders.filter(
+        (h) => !headers.includes(h)
+      );
       if (missingHeaders.length > 0) {
-        alert(`Header yang diperlukan: ${requiredHeaders.join(", ")}\nHeader yang hilang: ${missingHeaders.join(", ")}`)
-        return
+        alert(
+          `Header yang diperlukan: ${requiredHeaders.join(
+            ", "
+          )}\nHeader yang hilang: ${missingHeaders.join(", ")}`
+        );
+        return;
       }
 
-      const importedData = []
+      const importedData = [];
 
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map((v) => v.trim())
-        if (values.length < headers.length) continue
+        const values = lines[i].split(",").map((v) => v.trim());
+        if (values.length < headers.length) continue;
 
-        const rowData: any = {}
+        const rowData: any = {};
         headers.forEach((header, index) => {
-          rowData[header] = values[index] || ""
-        })
+          rowData[header] = values[index] || "";
+        });
 
         importedData.push({
           name: rowData.nama,
@@ -281,51 +341,51 @@ export default function SantriPage() {
           parent_name: rowData.nama_orangtua || rowData.parent_name || "",
           phone: rowData.telepon || rowData.phone || "",
           address: rowData.alamat || rowData.address || "",
-        })
+        });
       }
 
-      const { error } = await supabase.from("santri").insert(importedData)
+      const { error } = await supabase.from("santri").insert(importedData);
 
       if (error) {
-        console.error("Error importing santri:", error)
-        alert("Gagal mengimpor data: " + error.message)
-        return
+        console.error("Error importing santri:", error);
+        alert("Gagal mengimpor data: " + error.message);
+        return;
       }
 
-      alert(`Berhasil mengimpor ${importedData.length} data Santri!`)
-      setImportFile(null)
+      alert(`Berhasil mengimpor ${importedData.length} data Santri!`);
+      setImportFile(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
     } catch (error) {
-      console.error("Error importing:", error)
-      alert("Gagal mengimpor data. Pastikan format CSV benar.")
+      console.error("Error importing:", error);
+      alert("Gagal mengimpor data. Pastikan format CSV benar.");
     } finally {
-      setImporting(false)
+      setImporting(false);
     }
-  }
+  };
 
   const downloadTemplate = () => {
     const csvContent =
-      "data:text/csv;charset=utf-8,nama,kelas,usia,nama_orangtua,telepon,alamat\nAhmad Santri,Kelas A,12 tahun,Bapak Ahmad,08123456789,Jl. Contoh No. 1\nBudi Santri,Kelas B,13 tahun,Bapak Budi,08987654321,Jl. Contoh No. 2"
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", "template_santri.csv")
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+      "data:text/csv;charset=utf-8,nama,kelas,usia,nama_orangtua,telepon,alamat\nAhmad Santri,Kelas A,12 tahun,Bapak Ahmad,08123456789,Jl. Contoh No. 1\nBudi Santri,Kelas B,13 tahun,Bapak Budi,08987654321,Jl. Contoh No. 2";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_santri.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Get available classes from ustadz data
   const getAvailableKelas = () => {
-    const kelasList = ustadzList.map((ustadz) => ustadz.halaqoh)
-    return [...new Set(kelasList)].filter(Boolean) // Remove duplicates and empty values
-  }
+    const kelasList = ustadzList.map((ustadz) => ustadz.halaqoh);
+    return [...new Set(kelasList)].filter(Boolean); // Remove duplicates and empty values
+  };
 
   const getSantriByKelas = (kelas: string) => {
-    return santriList.filter((santri) => santri.halaqoh === kelas)
-  }
+    return santriList.filter((santri) => santri.halaqoh === kelas);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50">
@@ -339,8 +399,12 @@ export default function SantriPage() {
                 Kembali ke Dashboard
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Data Santri</h1>
-            <p className="text-gray-600">Kelola data santri dan penempatan kelas</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Data Santri
+            </h1>
+            <p className="text-gray-600">
+              Kelola data santri dan penempatan kelas
+            </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -352,7 +416,9 @@ export default function SantriPage() {
                   {isEditing ? "Edit Santri" : "Tambah Santri Baru"}
                 </CardTitle>
                 <CardDescription>
-                  {isEditing ? "Perbarui data Santri" : "Tambahkan Santri baru ke kelas"}
+                  {isEditing
+                    ? "Perbarui data Santri"
+                    : "Tambahkan Santri baru ke kelas"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -361,7 +427,9 @@ export default function SantriPage() {
                   <Input
                     placeholder="Masukkan nama lengkap"
                     value={formData.name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
                   />
                 </div>
 
@@ -369,11 +437,19 @@ export default function SantriPage() {
                   <Label htmlFor="halaqoh">Kelas *</Label>
                   <Select
                     value={formData.halaqoh}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, halaqoh: value }))}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, halaqoh: value }))
+                    }
                     disabled={getAvailableKelas().length === 0}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={getAvailableKelas().length ? "Pilih Kelas" : "Belum ada kelas"} />
+                      <SelectValue
+                        placeholder={
+                          getAvailableKelas().length
+                            ? "Pilih Kelas"
+                            : "Belum ada kelas"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {getAvailableKelas().map((kelas) => (
@@ -390,7 +466,9 @@ export default function SantriPage() {
                   <Input
                     placeholder="Contoh: 12 tahun"
                     value={formData.age}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, age: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, age: e.target.value }))
+                    }
                   />
                 </div>
 
@@ -399,7 +477,12 @@ export default function SantriPage() {
                   <Input
                     placeholder="Nama ayah/ibu"
                     value={formData.parentName}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, parentName: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        parentName: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
@@ -408,7 +491,12 @@ export default function SantriPage() {
                   <Input
                     placeholder="Contoh: 08123456789"
                     value={formData.phone}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
@@ -417,7 +505,12 @@ export default function SantriPage() {
                   <Input
                     placeholder="Alamat lengkap"
                     value={formData.address}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        address: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
@@ -427,10 +520,19 @@ export default function SantriPage() {
                     className="flex-1 bg-teal-600 hover:bg-teal-700"
                     disabled={!formData.name || !formData.halaqoh || loading}
                   >
-                    {loading ? "Menyimpan..." : isEditing ? "Perbarui" : "Tambah"} Santri
+                    {loading
+                      ? "Menyimpan..."
+                      : isEditing
+                      ? "Perbarui"
+                      : "Tambah"}{" "}
+                    Santri
                   </Button>
                   {isEditing && (
-                    <Button onClick={handleCancel} variant="outline" className="flex-1 bg-transparent">
+                    <Button
+                      onClick={handleCancel}
+                      variant="outline"
+                      className="flex-1 bg-transparent"
+                    >
                       Batal
                     </Button>
                   )}
@@ -445,7 +547,9 @@ export default function SantriPage() {
                   <Upload className="h-5 w-5" />
                   Import Data Santri
                 </CardTitle>
-                <CardDescription>Import data Santri dari file CSV</CardDescription>
+                <CardDescription>
+                  Import data Santri dari file CSV
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -457,7 +561,9 @@ export default function SantriPage() {
                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
-                  <p className="text-sm text-gray-500">Format: nama, kelas, usia, nama_orangtua, telepon, alamat</p>
+                  <p className="text-sm text-gray-500">
+                    Format: nama, kelas, usia, nama_orangtua, telepon, alamat
+                  </p>
                 </div>
 
                 <div className="flex gap-2">
@@ -468,7 +574,11 @@ export default function SantriPage() {
                   >
                     {importing ? "Mengimpor..." : "Import Data"}
                   </Button>
-                  <Button onClick={downloadTemplate} variant="outline" className="flex-1 bg-transparent">
+                  <Button
+                    onClick={downloadTemplate}
+                    variant="outline"
+                    className="flex-1 bg-transparent"
+                  >
                     Download Template
                   </Button>
                 </div>
@@ -487,41 +597,55 @@ export default function SantriPage() {
               <CardContent>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {santriList.length === 0 && dataLoaded ? (
-                    <p className="text-gray-500 text-center py-4">Belum ada data Santri</p>
+                    <p className="text-gray-500 text-center py-4">
+                      Belum ada data Santri
+                    </p>
                   ) : !dataLoaded ? (
-                    <p className="text-gray-500 text-center py-4">Loading data...</p>
+                    <p className="text-gray-500 text-center py-4">
+                      Loading data...
+                    </p>
                   ) : (
                     santriList.map((santri) => (
                       <div key={santri.id} className="border rounded-lg p-3">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-medium text-lg">{santri.name}</h3>
+                            <h3 className="font-medium text-lg">
+                              {santri.name}
+                            </h3>
                             <Badge variant="secondary" className="mb-2">
                               {santri.halaqoh}
                             </Badge>
                             {santri.age && (
                               <p className="text-sm text-gray-600">
-                                <span className="font-medium">Usia:</span> {santri.age}
+                                <span className="font-medium">Usia:</span>{" "}
+                                {santri.age}
                               </p>
                             )}
                             {santri.parent_name && (
                               <p className="text-sm text-gray-600">
-                                <span className="font-medium">Orang Tua:</span> {santri.parent_name}
+                                <span className="font-medium">Orang Tua:</span>{" "}
+                                {santri.parent_name}
                               </p>
                             )}
                             {santri.phone && (
                               <p className="text-sm text-gray-600">
-                                <span className="font-medium">Telepon:</span> {santri.phone}
+                                <span className="font-medium">Telepon:</span>{" "}
+                                {santri.phone}
                               </p>
                             )}
                             {santri.address && (
                               <p className="text-sm text-gray-600">
-                                <span className="font-medium">Alamat:</span> {santri.address}
+                                <span className="font-medium">Alamat:</span>{" "}
+                                {santri.address}
                               </p>
                             )}
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleEdit(santri)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(santri)}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
@@ -547,7 +671,9 @@ export default function SantriPage() {
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Santri per Kelas</CardTitle>
-                <CardDescription>Distribusi santri di setiap kelas</CardDescription>
+                <CardDescription>
+                  Distribusi santri di setiap kelas
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -573,5 +699,5 @@ export default function SantriPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
